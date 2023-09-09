@@ -1,0 +1,201 @@
+---
+title: "STATS 500 HW1"
+author: "Minxuan Chen"
+date: last-modified
+format:
+  html:
+    toc: true
+    css: styles.css
+    fig-align: "center"
+    fig-width: 8
+    fig-height: 6
+    embed-resources: true
+    format-links: false
+    execute:
+      warning: true
+      freeze: auto
+  pdf:
+    documentclass: article
+    papersize: a4paper
+    toc: true
+    number-sections: true
+    colorlinks: true
+    fig_width: 8
+    fig_height: 6
+    toc_depth: 2
+    urlcolor: blue
+    fontsize: 12pt
+code-fold: show
+code-overflow: scroll
+code-line-numbers: true
+---
+Github repo: <https://github.com/PKUniiiiice/STATS_500>
+
+```{r pre}
+#| include: false
+library(faraway)
+library(ggplot2)
+library(ggplot2)
+library(cowplot)
+library(dplyr)
+library(GGally)
+library(reshape)
+library(dplyr)
+```
+
+## Problem 1
+The dataset `teengamb` concerns a study of teenage gambling in Britain.       
+
+<font size="+1">**Glimpse**</font>
+
+```{r p1}
+data(teengamb)
+head(teengamb)
+```
+
+<font size="+1">**Descriptive Statistics**</font>
+
+  Note that `sex` is a categorical variable so here we only provide descriptions for the other variables.
+```{r p11}
+summary(teengamb[,2:5])
+```
+  
+It seems that the variable `gamble` is heavily right-skewed.
+
+<font size="+1">**Distribution and Correlation**</font>
+
+```{r p111}
+md <- melt(teengamb[2:5], id.vars=NULL)
+ggplot(md, aes(variable, value)) +
+  geom_boxplot() +
+  facet_wrap(~variable, scales="free")
+ggpairs(teengamb[2:5])
+```
+
+In the boxplot, we can observe outliers in all variables except for `status`, with `gamble` having the highest number of outliers.
+
+Regarding correlation, significant linear relationships are apparent between `status` and `verbal`, as well as between `income` and `gamble`. These relationships are consistent with the meanings of these variables.
+
+<font size="+1">**Gender Differences**</font>
+
+```{r p1111}
+teengamb$sex <- as.factor(teengamb$sex)
+md <- melt(teengamb, id.var=c("sex"), var="variables")
+p <- ggplot(data=md, aes(x=variables, y=value, fill=sex))+
+     geom_boxplot()+
+     facet_wrap(~variables, scale="free")
+show(p)
+```
+
+In the variables `status` and `gamble`, there appears to be noticeable differences between males and females. Males tend to have higher socioeconomic status scores as well as higher expenditures on gambling.
+
+```{r p11111}
+ggpairs(teengamb, columns=2:5, ggplot2::aes(color=sex))
+```
+
+Note that in the relationships `status`-`verbal` and `income`-`gamble`, there are noticeable differences between males and females (i.e. different corr coef). For instance, in the case of `income`-`gamble`, in males, teenagers with higher income tend to have higher expenditures on gambling. However, in females, gambling expenditure remains low, regardless of their income level. 
+
+## Problem 2
+### (a)
+By definition, for $E(AZ)=AE(Z)$, we need to verify 
+$$
+[E(AZ)]_i = [AE(Z)]_i
+$$
+Note that
+$$
+\begin{aligned}[]
+[E(AZ)]_i &= E([AZ]_i) \quad \text{(By def.)} \\
+&=E\left(\sum_{j=1}^m A_{ij} Z_j \right) \\
+&=\sum_{j=1}^m A_{ij} E(Z_j) \quad \text{(Linearity)} \\
+&=\sum_{j=1}^m A_{ij} [E(Z)]_j \quad \text{(By def.)} \\
+&=[AE(Z)]_i
+\end{aligned}
+$$
+
+Similarly, for $\operatorname{Cov}(AZ)=A\operatorname{Cov}(Z) A^\top$, we need to verify 
+$$
+\operatorname{Cov}(AZ)_{ij} = [A \operatorname{Cov}(Z) A^{\top}]_{ij}
+$$
+Note that
+$$
+\begin{aligned}
+LHS &= \operatorname{Cov}([AZ]_i, [AZ]_j) \\
+&=\operatorname{Cov}\left( \sum_{s=1}^m A_{is} Z_s ,  \sum_{t=1}^m A_{jt} Z_t \right)\\
+&=  \sum_{t=1}^m  \sum_{s=1}^m   A_{is}   A_{jt}  \operatorname{Cov}(Z_s,Z_t) \\
+&= \sum_{t=1}^m  \sum_{s=1}^m   A_{is}   A_{jt}  \operatorname{Cov}(Z)_{st} 
+\end{aligned}
+$$
+and
+$$
+\begin{aligned}
+RHS &= \left[A \operatorname{Cov} (Z) A^\top\right]_{ij} \\
+    &= \sum_{t=1}^m  [A \operatorname{Cov} (Z)]_{it} \, [A^\top]_{tj} \\
+    &= \sum_{t=1}^m \left(  \sum_{s=1}^m A_{is} \operatorname{Cov} (Z)_{st}    \right) [A^\top]_{tj}   \\
+    &=  \sum_{t=1}^m \left(  \sum_{s=1}^m A_{is} \operatorname{Cov} (Z)_{st}    \right) A_{jt} \quad (  A_{jt} = [A^\top]_{tj}) \\
+    &= \sum_{t=1}^m  \sum_{s=1}^m   A_{is}   A_{jt}  \operatorname{Cov}(Z)_{st} \\
+    &=LHS
+\end{aligned}
+$$
+
+### (b)
+We have
+$$
+Y=\left[\begin{array}{c}
+Z_1+2 Z_2 \\
+Z_1-2 Z_2 \\
+-Z_1+Z_2
+\end{array}\right] = \left[ \begin{array}{rr} 1&2 \\ 1&-2 \\ -1 & 2
+\end{array} \right] 
+\left[\begin{array}{c}
+Z_1 \\
+Z_2 
+\end{array}\right] = AZ
+$$
+ and
+ $$
+ \operatorname{Cov} (Z) = \left[ \begin{array}{rr} 3&-1 \\ -1&3 
+\end{array} \right] 
+ $$
+Therefore,
+$$
+\operatorname{Cov} (Y) = A  \operatorname{Cov} (Z) A^\top
+$$
+```{r p2b}
+A <- matrix(c(1,1,-1,2,-2,2),ncol=2)
+cov.z <- matrix(c(3,-1,-1,3),ncol=2)
+cov.Y <- A%*%cov.z%*%t(A)
+cov.Y
+```
+and
+$$
+\operatorname{Corr} (Y) = [\text{diag}( \operatorname{Cov} (Y))]^{-\frac{1}{2}}   \operatorname{Cov} (Y) [\text{diag}( \operatorname{Cov} (Y))]^{-\frac{1}{2}}
+$$
+
+```{r p2bb}
+diag(diag(cov.Y)^(-1/2))%*%cov.Y%*%diag(diag(cov.Y)^(-1/2))
+```
+
+## Problem 3
+It's known that
+$$
+s_y = \sqrt{ \frac{1}{n} \sum_{i=1}^n\left(y_i-\bar{y}\right)^2}, s_x = \sqrt{ \frac{1}{n} \sum_{i=1}^n\left(x_i-\bar{x}\right)^2}
+$$
+$$
+r = \frac{\frac{1}{n} \sum_{i=1}^n (x_i-\bar{x})(y_i-\bar{y})  }{s_x \cdot s_y}
+$$
+We go from $y=\hat{\beta_0}+\hat{\beta_1}x$
+$$
+\begin{aligned}
+y &= \bar{y}-\hat{\beta_1} \bar{x} + \hat{\beta}_1x\\
+  &= \bar{y} + \hat{\beta}_1 (x-\bar{x}) \\
+  &=   \bar{y} + \frac{\sum_{i=1}^n\left(x_i-\bar{x}\right)\left(y_i-\bar{y}\right)}{\sum_{i=1}^n\left(x_i-\bar{x}\right)^2} (x-\bar{x}) \\ 
+  &= \bar{y} + \frac{ n\cdot r \cdot s_x \cdot s_y } {\sum_{i=1}^n\left(x_i-\bar{x}\right)^2} (x-\bar{x}) \\
+  &= \bar{y} + \frac{ r \cdot s_x \cdot s_y } {\frac{1}{n}\sum_{i=1}^n\left(x_i-\bar{x}\right)^2} (x-\bar{x}) \\
+  &= \bar{y} + \frac{ r \cdot s_x \cdot s_y }{s_x^2}(x-\bar{x}) \\
+\end{aligned}
+$$
+Therefore, we have
+$$
+\frac{y-\bar{y}}{s_y} = r\cdot \frac{x-\bar{x}}{s_x}
+$$
+
