@@ -7,40 +7,52 @@ format:
     toc: true
     css: styles.css
     fig-align: "center"
-    fig-width: 8
-    fig-height: 6
+    fig-width: 6
+    fig-height: 5
     embed-resources: true
     format-links: false
     execute:
       warning: true
       freeze: auto
   pdf:
-    documentclass: article
     papersize: a4paper
-    toc: true
+    toc: false
     number-sections: true
     colorlinks: true
-    fig_width: 8
-    fig_height: 6
-    toc_depth: 2
+    fig-width: 6
+    fig-asp: 0.8
     urlcolor: blue
     fontsize: 12pt
+    geometry:
+      - top=30mm
+      - left=15mm
+      - right=15mm
+      - bottom=30mm
+      - heightrounded
 code-fold: show
 code-overflow: scroll
 code-line-numbers: true
 ---
-Github repo: <https://github.com/PKUniiiiice/STATS_500>
+
+```{=latex}
+% Trigger ToC creation in LaTeX
+\tableofcontents
+\thispagestyle{empty}
+\vspace{20pt}
+Github repo: \url{https://github.com/PKUniiiiice/STATS_500}
+
+\newpage
+
+\setcounter{page}{1}
+```
+
 
 ```{r pre}
 #| include: false
 library(faraway)
 library(ggplot2)
-library(ggplot2)
-library(cowplot)
-library(dplyr)
 library(GGally)
 library(reshape)
-library(dplyr)
 ```
 
 ## Problem 1
@@ -64,7 +76,7 @@ It seems that the variable `gamble` is heavily right-skewed.
 
 <font size="+1">**Distribution and Correlation**</font>
 
-```{r p111}
+```{r p111, }
 md <- melt(teengamb[2:5], id.vars=NULL)
 ggplot(md, aes(variable, value)) +
   geom_boxplot() +
