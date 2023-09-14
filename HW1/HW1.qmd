@@ -48,7 +48,7 @@ Github repo: \url{https://github.com/PKUniiiiice/STATS_500}
 
 
 ```{r pre}
-#| include: false
+#| output: false
 library(faraway)
 library(ggplot2)
 library(GGally)
@@ -156,7 +156,7 @@ Y=\left[\begin{array}{c}
 Z_1+2 Z_2 \\
 Z_1-2 Z_2 \\
 -Z_1+Z_2
-\end{array}\right] = \left[ \begin{array}{rr} 1&2 \\ 1&-2 \\ -1 & 2
+\end{array}\right] = \left[ \begin{array}{rr} 1&2 \\ 1&-2 \\ -1 & 1
 \end{array} \right] 
 \left[\begin{array}{c}
 Z_1 \\
@@ -165,7 +165,7 @@ Z_2
 $$
  and
  $$
- \operatorname{Cov} (Z) = \left[ \begin{array}{rr} 3&-1 \\ -1&3 
+ \operatorname{Cov} (Z) = \left[ \begin{array}{rr} 3&-1 \\ -1&1
 \end{array} \right] 
  $$
 Therefore,
@@ -173,8 +173,8 @@ $$
 \operatorname{Cov} (Y) = A  \operatorname{Cov} (Z) A^\top
 $$
 ```{r p2b}
-A <- matrix(c(1,1,-1,2,-2,2),ncol=2)
-cov.z <- matrix(c(3,-1,-1,3),ncol=2)
+A <- matrix(c(1,1,-1,2,-2,1),ncol=2)
+cov.z <- matrix(c(3,-1,-1,1),ncol=2)
 cov.Y <- A%*%cov.z%*%t(A)
 cov.Y
 ```
