@@ -70,9 +70,9 @@ cat("Mean of residuals: ", mean(m1$residuals), "\n")
 cat("Median of residuals: ", median(m1$residuals))
 
 ```
-Note that mean value is larger than median but not very severe, so we conclude that the residuals is slightly skewed to the right. In other words, our assumption of the error, $\sigma_i \sim N(0,1)$ is slightly violated. 
+The mean value is slightly larger than the median, indicating a mild right skew in the residuals. This suggests a slight deviation from our assumption that the errors, $\epsilon_i \sim N(0,1)$.
 
-BTW, if we're sure that the assumption is right, then the small bias of median is due to limited sample size. When we get more samples, we expect to see a zero median as well.
+BTW, if we are confident that the assumption is correct, the small bias in the median may be attributed to the limited sample size. With a larger sample, we anticipate the median approaching zero.
 
 ### (d)
 ```{r p1d}
@@ -87,16 +87,18 @@ for (i in c("income", "status", "verbal")){
   cat("Corr(res, ", i, "): ", cor(m1$residuals, teengamb[,i]), "\n")
 }
 ```
-We observe that the correlations between the residuals and these predictors are so small that we can regard them as 0. In other words, residuals and these predictors are uncorrelated.
+We can observe that the correlations between the residuals and these predictors are very small, almost zero. This implies that the residuals and these predictors are uncorrelated.
 
-To correspond this result to theory, it's worthy to mention that "uncorrelated" is a term of random variable. In our assumption of classical linear regression model, $X$ is not stochastic, so $\text{Corr}(X,\epsilon)=0$ is a natural result. However, here we say "uncorrelated" points at sample level. It more means columns of design matrix $X$ is orthogonal to residual vector $\hat{\epsilon}$. This is the natural result of hat matrix $H$ is a projection.
+It's worth to mention that the term "uncorrelated" typically applies to random variables. In our assumption within the classical linear regression model, $X$ is not considered stochastic. Therefore, the result of $\text{Corr}(X, \epsilon) = 0$ is a natural consequence.
 
-We can give a proof.
+However, when we say 'uncorrelated' in this context, we are referring to a property at the sample level. Specifically, it signifies that the columns of the design matrix $X$ are orthogonal to the residual vector $\hat{\epsilon}$. This is a natural outcome due to the hat matrix $H$ being a projection matrix.
+
+A formal proof of this property can be provided.
 
 $$
 \hat{\epsilon} = y-\hat{y} = (I-X(X^TX)^{-1}X^T)y, \to  X^T\hat{\epsilon} = (X^T-X^T)y=0
 $$
-We consider the i-th row of $X^T$, which denotes all values of predictor $X_i$, then
+We consider the i-th row of $X^T$, which represents all values of the predictor $X_i$ in the sample, then
 $$
 \sum_{j=1}^{n} X_{ij}\hat{\epsilon}_j = 0
 $$
@@ -104,15 +106,14 @@ and the first row of $X^T$,
 $$
 \sum_{j=1}^{n} 1\cdot\hat{\epsilon}_j = 0
 $$
-Therefore, the numerator of sample correlation of $X_i$ and $\hat{\epsilon}$ is
+Therefore, the numerator of sample correlation between $X_i$ and $\hat{\epsilon}$ is
 $$
 n\sum_{j=1}^{n} X_{ij}\hat{\epsilon}_j - \sum_{j=1}^{n} X_{ij}\sum_{j=1}^{n}\hat{\epsilon}_j = 0
 $$
 Hence, $X_i$ and $\hat{\epsilon}$ are uncorrelated.
 
 ### (f)
-The difference is the meaning of coefficient of variable `sex`. Since 0 is male and 1 is female,
-the difference would be $-22.11833$ (female - male), i.e. female spends 22.11833 pounds less than male.
+The difference is exactly equal to the coefficient of variable `sex`. Since 0 is male and 1 is female, the difference would be $-22.11833$ (female - male), i.e. female spends 22.11833 pounds less than male.
 
 ## Problem 2
 ### (a)
@@ -162,6 +163,6 @@ $$
 \end{aligned}
 $$
 since $\hat{\beta}$ is of dim $(p+1)\times 1$, and $\hat{\epsilon}$ is of dim $n\times 1$,
-$Cov(\hat{\beta},\hat{\epsilon}  )$ is a $(p+1)\times n)$ matrix of zeros.
+$Cov(\hat{\beta},\hat{\epsilon}  )$ is a $(p+1)\times n$ matrix of zeros.
 
 
