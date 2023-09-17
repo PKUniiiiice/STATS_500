@@ -1,0 +1,167 @@
+---
+title: "STATS 500 HW2"
+author: "Minxuan Chen"
+date: last-modified
+format:
+  html:
+    toc: true
+    css: styles.css
+    fig-align: "center"
+    fig-width: 6
+    fig-height: 5
+    embed-resources: true
+    format-links: false
+    execute:
+      warning: true
+      freeze: auto
+  pdf:
+    papersize: a4paper
+    toc: false
+    number-sections: true
+    colorlinks: true
+    fig-width: 6
+    fig-asp: 0.8
+    urlcolor: blue
+    fontsize: 12pt
+    geometry:
+      - top=30mm
+      - left=15mm
+      - right=15mm
+      - bottom=30mm
+      - heightrounded
+code-fold: show
+code-overflow: scroll
+code-line-numbers: true
+---
+
+```{=latex}
+% Trigger ToC creation in LaTeX
+\tableofcontents
+\thispagestyle{empty}
+\vspace{20pt}
+Github repo: \url{https://github.com/PKUniiiiice/STATS_500}
+
+\newpage
+
+\setcounter{page}{1}
+```
+
+## Problem 1
+### (a)
+```{r p1a}
+library(faraway)
+data(teengamb)
+m1 <- lm(gamble ~., data=teengamb)
+summary(m1)
+```
+Multiple R-squared gives the proportion of variation in the response variable, which can be explained by all the explanatory variables. 
+
+So, the percentage is 52.67\%.
+
+### (b)
+```{r p1b}
+cat("Largest positive residual: Case Number", which.max(m1$residuals), "\n")
+cat("Largest negative residual: Case Number", which.max(-m1$residuals), "\n")
+
+```
+### (c)
+```{r p1c}
+cat("Mean of residuals: ", mean(m1$residuals), "\n")
+cat("Median of residuals: ", median(m1$residuals))
+
+```
+Note that mean value is larger than median but not very severe, so we conclude that the residuals is slightly skewed to the right. In other words, our assumption of the error, $\sigma_i \sim N(0,1)$ is slightly violated. 
+
+BTW, if we're sure that the assumption is right, then the small bias of median is due to limited sample size. When we get more samples, we expect to see a zero median as well.
+
+### (d)
+```{r p1d}
+cat("Corr(res, fitted): ", cor(m1$residuals, m1$fitted.values))
+
+plot(x=m1$fitted.values, y=m1$residuals)
+```
+
+### (e)
+```{r p1e}
+for (i in c("income", "status", "verbal")){
+  cat("Corr(res, ", i, "): ", cor(m1$residuals, teengamb[,i]), "\n")
+}
+```
+We observe that the correlations between the residuals and these predictors are so small that we can regard them as 0. In other words, residuals and these predictors are uncorrelated.
+
+To correspond this result to theory, it's worthy to mention that "uncorrelated" is a term of random variable. In our assumption of classical linear regression model, $X$ is not stochastic, so $\text{Corr}(X,\epsilon)=0$ is a natural result. However, here we say "uncorrelated" points at sample level. It more means columns of design matrix $X$ is orthogonal to residual vector $\hat{\epsilon}$. This is the natural result of hat matrix $H$ is a projection.
+
+We can give a proof.
+
+$$
+\hat{\epsilon} = y-\hat{y} = (I-X(X^TX)^{-1}X^T)y, \to  X^T\hat{\epsilon} = (X^T-X^T)y=0
+$$
+We consider the i-th row of $X^T$, which denotes all values of predictor $X_i$, then
+$$
+\sum_{j=1}^{n} X_{ij}\hat{\epsilon}_j = 0
+$$
+and the first row of $X^T$,
+$$
+\sum_{j=1}^{n} 1\cdot\hat{\epsilon}_j = 0
+$$
+Therefore, the numerator of sample correlation of $X_i$ and $\hat{\epsilon}$ is
+$$
+n\sum_{j=1}^{n} X_{ij}\hat{\epsilon}_j - \sum_{j=1}^{n} X_{ij}\sum_{j=1}^{n}\hat{\epsilon}_j = 0
+$$
+Hence, $X_i$ and $\hat{\epsilon}$ are uncorrelated.
+
+### (f)
+The difference is the meaning of coefficient of variable `sex`. Since 0 is male and 1 is female,
+the difference would be $-22.11833$ (female - male), i.e. female spends 22.11833 pounds less than male.
+
+## Problem 2
+### (a)
+We check whether
+$$
+[Cov(A U, B V)]_{i j}=\left[A Cov(U, V) B^{\top}\right]_{i j}
+$$
+$$
+\begin{aligned}
+LHS &= Cov((AU)_i, (BV)_j) \\
+&=Cov\left( \sum_{t=1}^m A_{it} U_t,   \sum_{s=1}^n B_{js} V_s    \right)\\
+&=\sum_{t=1}^m\sum_{s=1}^n A_{it}B_{js} Cov( U_{t}, V_{s})
+\end{aligned}
+$$
+$$
+\begin{aligned}
+RHS &= \sum_{s=1}^n  \left[ A Cov(U,V)  \right]_{is}   (B^{\top})_{sj} \\
+&= \sum_{s=1}^n  \left[ \sum_{t=1}^m A_{it} Cov(U,V)_{ts}  \right]   B_{js} \quad ( (B^{\top})_{sj} = B_{js} ) \\
+&=\sum_{s=1}^n  \sum_{t=1}^m A_{it}  \ B_{js}   Cov(U_t,V_s) \\
+&=\sum_{t=1}^m\sum_{s=1}^n A_{it}B_{js} Cov( U_{t}, V_{s}) = LHS
+\end{aligned}
+$$
+Therefore
+$$
+Cov(AU,BV) = ACov(U,V)B^{\top}
+$$
+
+### (b)
+It's known that
+$$
+\hat{\beta} = (X^\top X)^{-1}X^\top y =  (X^\top X)^{-1}X^\top (X\beta+\epsilon) = \beta +  (X^\top X)^{-1}X^\top\epsilon
+$$
+and
+$$
+\hat{\epsilon} = (I-X(X^\top X)^{-1}X^\top)y = X\beta + (I-X(X^\top X)^{-1}X^\top)\epsilon
+$$
+Note that in these two expressions, only $\epsilon$ is random. Thus
+$$
+\begin{aligned}
+&Cov(\hat{\beta},\hat{\epsilon}  ) \\
+=& Cov(\beta +  (X^\top X)^{-1}X^\top\epsilon,X\beta + (I-X(X^\top X)^{-1}X^\top)\epsilon ) \\
+=& Cov( (X^\top X)^{-1}X^\top\epsilon,  (I-X(X^\top X)^{-1}X^\top)\epsilon ) \\
+=& (X^\top X)^{-1}X^\top Cov(\epsilon, \epsilon) \left[  (I-X(X^\top X)^{-1}X^\top) \right]^\top \\
+=& \sigma^2I_n (X^\top X)^{-1}X^\top  (I-X(X^\top X)^{-1}X^\top) \\
+=& \sigma^2 ( (X^\top X)^{-1}X^\top  - (X^\top X)^{-1}X^\top ))\\
+=&0
+\end{aligned}
+$$
+since $\hat{\beta}$ is of dim $(p+1)\times 1$, and $\hat{\epsilon}$ is of dim $n\times 1$,
+$Cov(\hat{\beta},\hat{\epsilon}  )$ is a $(p+1)\times n)$ matrix of zeros.
+
+
