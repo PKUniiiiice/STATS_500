@@ -1,0 +1,65 @@
+---
+title: "STATS 500 HW3"
+author: "Minxuan Chen"
+date: last-modified
+format:
+  html:
+    toc: true
+    css: styles.css
+    fig-align: "center"
+    fig-width: 6
+    fig-height: 5
+    embed-resources: true
+    format-links: false
+    execute:
+      warning: true
+      freeze: auto
+  pdf:
+    papersize: a4paper
+    toc: false
+    number-sections: true
+    colorlinks: true
+    fig-width: 6
+    fig-asp: 0.8
+    urlcolor: blue
+    fontsize: 12pt
+    geometry:
+      - top=30mm
+      - left=15mm
+      - right=15mm
+      - bottom=30mm
+      - heightrounded
+code-fold: show
+code-overflow: scroll
+code-line-numbers: true
+---
+
+```{=latex}
+% Trigger ToC creation in LaTeX
+\tableofcontents
+\thispagestyle{empty}
+\vspace{20pt}
+Github repo: \url{https://github.com/PKUniiiiice/STATS_500}
+
+\newpage
+
+\setcounter{page}{1}
+```
+
+## Problem 1
+### (a)
+```{r p1a}
+library(faraway)
+data(cheddar)
+model1 <- lm(taste ~ ., data=cheddar)
+summary(model1)
+
+```
+From the result, `H2S` and `Lactic` are statistically significant at the 5\% level.
+
+### (b)
+```{r p1b}
+model2 <- lm(taste ~ exp)
+
+```
+
