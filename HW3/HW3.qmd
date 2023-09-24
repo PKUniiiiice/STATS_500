@@ -17,7 +17,7 @@ format:
   pdf:
     papersize: a4paper
     toc: false
-    number-sections: true
+    number-sections: false
     colorlinks: true
     fig-width: 6
     fig-asp: 0.8
@@ -59,7 +59,275 @@ From the result, `H2S` and `Lactic` are statistically significant at the 5\% lev
 
 ### (b)
 ```{r p1b}
-model2 <- lm(taste ~ exp)
+model2 <- lm(taste ~ exp(Acetic) + exp(H2S) + Lactic, data=cheddar)
+summary(model2)
 
 ```
+From the result, only `Lactic` is statistically significant at the 5\% level.
+
+### (c)
+No, because the models are not nested. In other words, if we set one model corresponding to the NULL hypothesis, we cannot apply that hypothesis to the other model (the full model) to obtain a reduced (null) model.
+
+Regarding the fit to the data, we compare the $R^2$ values. Model (a) has an $R^2$ of 0.6518, while model (b) has an $R^2$ of 0.5754. Therefore, model (a), which includes predictors on a log scale, provides a better fit to the data.
+
+
+### (d)
+If all other variables are held constant, and `H2S` is increased 0.01, by $\hat{\beta}_{\text{H2S}}$, `taste` would increase 0.039118.
+
+### (e)
+We have
+$$
+\Delta_{\log{\text{H2S}}} = 0.01 = (\log{\text{H2S}})_n - (\log{\text{H2S}})_o
+$$
+thus
+$$
+\frac{\text{H2S}_n}{\text{H2S}_o} = \exp{0.01}=101.005\%
+$$
+
+### (f)
+```{r p1f}
+# 95% CI
+conf <- confint(model1, level=.95);conf
+
+# 99% CI
+confint(model1, level=.99)
+```
+
+### (g)
+To construct a 95\% confidence region for $(\beta_{H2S}, \beta_{Lactic})$, we need to use
+$$
+\frac{n-p-1}{2}(\hat{\beta}-\beta)^T \left[ \widehat{\text{Cov}(\hat{\beta})}  \right]^{-1}(\hat{\beta}-\beta) \sim F_{2, n-p-1}
+$$
+where $\beta = (\beta_{H2S}, \beta_{Lactic})^T= \begin{bmatrix}  0&0&1&0 \\ 0&0&0&1 \end{bmatrix} \beta_{tot}, \quad \beta_{tot}=(1, \beta_{Acetic}, \beta_{H2S}, \beta_{Lactic})^T$ and $\widehat{\text{Cov}(\hat{\beta})}$ is the estimated covariance matrix of $\hat{\beta}$.
+
+Therefore, the confidence region is defined by 
+$$
+\frac{1}{2}(\hat{\beta}-\beta)^T \left[ \widehat{\text{Cov}(\hat{\beta})}  \right]^{-1}(\hat{\beta}-\beta) \leq F_{2, n-p-1}(\alpha)
+$$
+Note that this expression defines an ellipse. To plot it, we can utilize the `car::ellipse` function. Furthermore, We can verify that this manually implemented plotting yields the same result as calling `ellipse::ellipse()` does. (For a more rigorous check, you need to refer to the source code of `ellipse.lm`, where you will find that it performs the same operation as described above.)
+
+```{r p1g}
+Sys.setLanguage("en")
+library(car)
+center <- model1$coefficients[c(3,4)]
+A <- vcov(model1)[c(3,4), c(3,4)]
+const <- 2*qf(0.95, 2, model1$df.residual)
+e1 <- car::ellipse(
+  shape = A,
+  center = center,
+  radius = sqrt(const),
+  draw = TRUE,
+  add = FALSE,
+  lwd = 5,
+  lty= 1,
+  col= 'blue',
+  center.pch=18,
+  grid=FALSE,
+  xlab='H2S',
+  ylab='Lactic'
+)
+
+lines(e2 <- ellipse::ellipse(model1, c('H2S','Lactic')),
+     xlim=c(0,8), lwd=5, lty='aa', col='red')
+points(model1$coefficients['H2S'], model1$coefficients['Lactic'],
+       pch=18, col='red')
+points(0, 0, pch=1)
+abline(v=conf['H2S', ], lty=2)
+abline(h=conf['Lactic', ], lty=2)
+
+```
+
+### (h)
+```{r p1h}
+plot(x=cheddar$H2S, y=cheddar$Lactic)
+cor(cheddar$H2S, cheddar$Lactic)
+```
+
+We can observe that the correlation coefficient between `H2S` and `Lactic` is positive, while the slope of the major axis of the confidence region (an ellipse) is negative. This opposing sign is not coincidental. In fact, the confidence ellipse is a rescaled clockwise rotation of the data ellipse (the Lactic-H2S plot we draw). A detailed explanation can be found in the book [A Mathematical Primer for Social Statistics](https://us.sagepub.com/en-us/nam/a-mathematical-primer-for-social-statistics/book274356) on page 217. The primary reason for this behavior is the covariance matrices corresponding to these two ellipses are "inversely" related to each other.
+
+<!--
+We can give if a proof.
+
+Assume that there are $p$ variables in the regression model, and we consider the correlation of $X_1$ and $X_2$. 
+
+First, the sign of sample correlation is totally determined by sample covariance so we can only calculate the covariance. Let $\tilde{X}$ be the data matrix, whose row $i$ is correspond to obs. No.$i$ ($x_{i1}, x_{i2}, \cdots, x_{i,p}$). It's known that the sample covariance matrix is 
+$$
+S = \frac{1}{n-1} \tilde{X}^T(I-\frac{1}{n}1_n1_n^T)\tilde{X}
+$$
+where $1_n$ is an all one vector.
+
+Second, let's find the relationship between this sample covariance matrix and estimated covariance matrix of $\beta_1,\beta_2$ (i.e. $\widehat{\text{Cov}(\hat{\beta})} $).
+
+We calculate the covariance of all coef. at first.
+$$
+\widehat{\text{Cov}(\hat{\beta}_{tot})} = \hat{\sigma}^2 (X^TX)^{-1}
+$$
+where $X$ is the design matrix and 
+$$
+X=\begin{bmatrix} 1_n & \tilde{X}  \end{bmatrix},\quad  X^TX =
+\begin{bmatrix} 1_n^T1_n &  1_n^T \tilde{X} \\ \tilde{X}^T1_n & \tilde{X}^T \tilde{X} \end{bmatrix}
+$$
+so
+$$
+\begin{aligned}
+(X^TX)^{-1} &= \begin{bmatrix}  * & * \\
+* & (\tilde{X}^T \tilde{X} -\tilde{X}^T1_n \frac{1}{n}1_n^T \tilde{X}  )\end{bmatrix}
+=\begin{bmatrix}  * & * \\
+* & \left(\tilde{X}^T(I-\frac{1}{n} 1_n1_n^T)\tilde{X} \right)^{-1}\end{bmatrix} \\
+&=\begin{bmatrix}  *_{1\times1} & *_{1\times p} \\
+*_{p\times 1} & \big((n-1)S \big)^{-1}\end{bmatrix}
+\end{aligned}
+$$
+Since we care about $\beta_1,\beta_2$, we should extract the estimated covariance from $\big((n-1)S \big)^{-1}$. Use syntax in R, formally,
+$$
+\widehat{\text{Cov}(\hat{\beta})}  = \hat{\sigma}^2 \left\{\big((n-1)S \big)^{-1}[1:2,1:2]\right\}
+$$
+Second, in the expression 
+$$
+\frac{1}{2}(\hat{\beta}-\beta)^T \left[ \widehat{\text{Cov}(\hat{\beta})}  \right]^{-1}(\hat{\beta}-\beta) \leq F_{2, n-p-1}(\alpha)
+$$
+$\hat{\beta}$ is the coordinate we want to plot, the substration term $-\beta$ is just translation, which doesn't influence slope. Therefore, we can write is to a simple form
+$$
+\hat{\beta}^T A^{-1} \hat{\beta} \leq \text{constant } C
+$$
+Let's consider Why this is an ellipse? Note that both $A$ and $A^{-1}$ are real symmetric matrices, so we have the spectrum decomposition
+$$
+A = P\Lambda P^T, A^{-1} = P\Lambda^{-1} P^T = (P\Lambda^{-1/2})(P\Lambda^{-1/2})^T
+$$
+then
+$$
+\hat{\beta}^T A^{-1} \hat{\beta} = ((P\Lambda^{-1/2})^T\hat{\beta})^T   ((P\Lambda^{-1/2})^T\hat{\beta}) \leq \text{constant } C
+$$
+We can regard $(P\Lambda^{-1/2})^T\hat{\beta}$ as a new vector $\vec{t}$, then this inequality defines a circle (if in 2-dim). If we look deeper
+$$
+t = (P\Lambda^{-1/2})^T\hat{\beta} \to \hat{\beta}=P\Lambda^{1/2}t
+$$
+That is, if we have a circle defined by $t^Tt \leq C$, for every points on it, we apply a linear transformation $P\Lambda^{1/2}$, then we can get the confidence region.
+
+Here, we have $A = \widehat{\text{Cov}(\hat{\beta})} $.
+
+
+
+$\left[ \widehat{\text{Cov}(\hat{\beta})}  \right]^{-1}$ is only covariance matrix of variables we care, here is $X_1,X_2$. Since $$
+ \widehat{\text{Cov}(\hat{\beta}_{tot})}  = \hat{\sigma}^2 (X^TX)^{-1}
+$$ 
+It's easy to get the relationship
+$$
+\widehat{\text{Cov}(\hat{\beta})} =\hat{\sigma}^2  C (X^TX)^{-1} C^T
+$$
+where $C=\begin{bmatrix}1&0 &\cdots&0\\ 0&1&\cdots& 0 \end{bmatrix}$. We use this matrix to extract required entries.
+
+Third,  
+-->
+
+## Problem 2
+Before we begin the proof, we present a lemma at first.
+
+*Lemma*: If $X \sim N(\mu, \Sigma)$, then $E(X^TAX) = \operatorname{tr}(A\Sigma) + \mu^TA\mu$.
+
+*Proof*
+$$
+\begin{aligned}
+E\left(X^T A X\right) & =E(X-\mu)^T A(X-\mu)+\mu^T A \mu \\
+= & \operatorname{tr}\left\{E\left[A(X-\mu)(X-\mu)^T\right]\right\}+\mu^T A \mu \\
+= & \operatorname{tr}\left\{A E\left[(X-\mu)(X-\mu)^T\right]\right\}+\mu^T A \mu \\
+= & \operatorname{tr}(A \Sigma)+\mu^T A \mu
+\end{aligned}
+$$
+
+### (a)
+$$
+\begin{aligned}
+RSS &= \sum_{i=1}^n(y_i-\hat{y}_i)=Y^T (I-H)Y \\
+&=(X\beta+\epsilon)^T(I-H)(X\beta+\epsilon)
+\end{aligned}
+$$
+Note that $E(\epsilon)=0$, so, when we take expectation of $RSS$, any first-order term involving $\epsilon$ will disappear, allowing us to write
+$$
+\begin{aligned}
+E(RSS) &= E( \epsilon^T(I-H)\epsilon + (X\beta)^T(I-H)X\beta)\\
+&= E( \epsilon^T(I-H)\epsilon) + \beta^T X^T X \beta - \beta^T X^T (X(X^TX)^{-1}X^T) X \beta\\
+&=E( \epsilon^T(I-H)\epsilon)
+\end{aligned}
+$$
+Note that $\epsilon \sim N(0,\sigma^2I)$, so we can use the lemma
+$$
+\begin{aligned}
+E(RSS) &= \operatorname{tr}((I-H) \sigma^2I) + 0\\
+&= \sigma^2 \operatorname{tr}(I-H) \\
+&= \sigma^2 (\operatorname{tr}(I) - \operatorname{tr}(X(X^TX)^{-1}X^T))\\
+&= \sigma^2 (\operatorname{tr}(I_n) - \operatorname{tr}((X^TX)^{-1}X^TX))\\
+&= \sigma^2 (\operatorname{tr}(I_n) - \operatorname{tr}(I_{p+1})\\
+&=  (n-(p+1)) \sigma^2
+\end{aligned}
+$$
+
+### (b)
+Use similar methods as in part (a), we have
+$$
+\begin{aligned}
+E(RSS_o) &= E( \epsilon^T(I-H_o)\epsilon + (X\beta)^T(I-H_o)X\beta)\\
+&= (n-p)\sigma^2+ \beta^T X^T  (I-H_o)X \beta
+\end{aligned}
+$$
+Next, we explicitly write out $X$ and $H_o$. For simplicity, we use the term $X_{-p}=X^{(o)}$. We have
+$$
+\begin{aligned}
+&X = [X_{-p}\quad X_p]\\
+&H_o =  X_{-p} (X_{-p}^TX_{-p})^{-1} X_{-p}^T\\
+&\beta = \begin{bmatrix} \beta_{-p} \\ \beta_p  \end{bmatrix}
+\end{aligned}
+$$
+Thus
+$$
+\begin{aligned}
+\beta^T X^T  (I-H_o)X \beta &= \begin{bmatrix} \beta_{-p}^T & \beta_p^T  
+\end{bmatrix}
+\begin{bmatrix} X_{-p}^T \\ X_p^T  \end{bmatrix} (I-H_o) \begin{bmatrix} X_{-p} & X_p  \end{bmatrix} \begin{bmatrix} \beta_{-p} \\ \beta_p  \end{bmatrix} \\
+&= \Big( \beta_{-p}^T  X_{-p}^T +  \beta_p^T X_p^T   \Big) (I-H_o) 
+\Big(  X_{-p}\beta_{-p}+  X_p \beta_p   \Big) \\
+&=\beta_{-p}^T  X_{-p}^T  (I-H_o)X_{-p}\beta_{-p} + \beta_{-p}^T  X_{-p}^T (I-H_o)   X_p \beta_p  \\
+&\,\,+ \beta_p^T X_p^T (I-H_o)X_{-p}\beta_{-p}+ \beta_p^T X_p^T  (I-H_o)  X_p \beta_p 
+\end{aligned}
+$$
+Note that
+$$
+H_o = X_{-p}(X_{-p}^TX_{-p})^{-1}X_{-p}^T 
+$$
+thus the first three terms will all be zero. So
+$$
+\begin{aligned}
+E(RSS_o) 
+&= (n-p)\sigma^2+ \beta_p^T X_p^T  (I-H_o)  X_p \beta_p 
+\end{aligned}
+$$
+since $\beta_p$ is a number, we have
+$$
+\begin{aligned}
+E(RSS_o) 
+&=  \beta_p^2  \cdot X_p^T  (I-H_o)  X_p +(n-p)\sigma^2
+\end{aligned}
+$$
+
+### (c)
+When $E(RSS_o)=(n-p)\sigma^2$, we have $\beta_p^2 \cdot  X_p^T  (I-H_o)  X_p=0$. Let's delve deeper into this equation. Note that $I-H_o$ is both idempotent and symmetric.
+$$
+\begin{aligned}
+\beta_p^2 \cdot  X_p^T  (I-H_o)  X_p = \beta_p^2 \cdot  ((I-H_o)X_p )^T(I-H_o)  X_p = \beta_p^2 \cdot \tilde{X_p}^T\tilde{X_p} =0
+\end{aligned}
+$$
+Since $\tilde{X_p}$ is a column vector, this equation is equal to zero if
+$$
+\beta_p=0 \text{ or } \tilde{X_p}=(I-H_o)X_p=0
+$$
+The first condition $\beta_p=0$ means that the true model ($y=X\beta+\epsilon$) doesn't need the inclusion of $X_p$, i.e. it is redundant.
+
+As for the second condition, we consider a non-trivial case, where $I-H_o \neq 0$. If we treat $X_p$ as response and $1,X_1,\cdots,X_{p-1}$ as regressors, then $(I-H_o)X_p$ gives the residuals of the regression
+$$
+X_p \sim 1+X_1+\cdots+X_{p-1}
+$$
+Therefore, $(I-H_o)X_p=0$ means that $X_p$ can be perfectly fitted by $1,X_1,\cdots,X_{p-1}$. In other words, in the dataset, $X_p$ is a linear combination of 
+$1,X_1,\cdots,X_{p-1}$.
+
+
 
