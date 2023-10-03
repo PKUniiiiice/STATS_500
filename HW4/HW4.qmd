@@ -60,7 +60,8 @@ m.ori <- lm(gamble ~ sex+status+income+verbal, data=teengamb)
 
 * Check the constant variance assumption for the errors.
 
-We can use `Residuals vc Fitted` and `Scale-Location` plots together to check the variance. It's clear that, with $x$ increase, the magnitude of residuals increase as well. So we conclude that there exists heteroscedasticity. Note that this violation may result in bias in all inferences, so we choose to make a transformation as remedy and continue the remaining diagnosis on the new model.
+We can use both the `Residuals vs Fitted` and `Scale-Location` plots to check for variance issues. It's evident that, as $x$ increases, the magnitude of residuals also increases. So we conclude that there is  heteroscedasticity. Note that this violation may result in bias into all inferences. As a remedy, we choose to apply a transformation and proceed with the remaining diagnosis on the new model.
+
 ```{r p1a1}
 par(mfrow = c(1,2))
 plot(m.ori, which=1)
@@ -79,14 +80,16 @@ plot(m.new, which=1)
 plot(m.new, which=3)
 par(mfrow = c(1,1))
 ```
-In the new model, we observe that there still some slight heteroscedasticity in residuals, but not as severe as the original model.
+
+In the new model, we still observe some slight heteroscedasticity in residuals, although it is not as severe as in the original model.
+
 
 * Check the normality assumption.   
 ```{r p1a2}
 plot(m.new, which=2)
 ```
 
-From case No. 39,36 and 24, the residuals are slightly heavy-tailed comparing to normal distribution. So, the normality assumption is slightly violated.
+From cases No.39,36 and 24, we observe that the residuals are slightly heavy-tailed compared to a normal distribution. So, there is a slight violation of the normality assumption.
 
 * Check for large leverage points.
 ```{r p1a3}
@@ -95,7 +98,7 @@ abline(v=2*length(m.new$coefficients)/nrow(teengamb), col='red')
 hatvalues(m.ori)>2*length(m.new$coefficients)/nrow(teengamb)
 ```
 
-We add a vertical line $x=\frac{2(p+1)}{n}$ at the `Residuals vs Leverage` plot, we can find 4 points with large leverage. From direct calculation, case No. 31, 33, 35 and 42 are large leverage points.
+When we add a vertical line $x=\frac{2(p+1)}{n}$ on the `Residuals vs Leverage` plot, we can identify 4 points with high leverage. Upon direct calculation, case No.31, 33, 35 and 42 are large leverage points.
 
 * Check for outliers.
 ```{r p1a4}
@@ -103,7 +106,7 @@ plot(abs(rstudent(m.new)))
 abline(h=2, col='red')
 ```
 
-We can plot all absolute values of studentized deleted residuals, one empirical rule of outliers is
+We can plot all absolute values of studentized deleted residuals. One empirical rule of outliers is
 $$
 |t_i|>2
 $$
@@ -132,10 +135,9 @@ matplot(newx$income, cbind(conf, pred[,2:3]),
         col=c(1, 'red', 'red', 'blue', 'blue'), type="l",
         xlab="income", ylab="gamble", xaxt="n")
 axis(1, at = seq(0, 20))
-rug(teengamb$income)
+rug(teengamb$income,col=2, lwd=2)
 ```
 
-As for this particular range, 43 and 7 are the median values of `status` and `verbal`, resp. The range of income between 0 to 20 covers all values in the original dataset. Under this setting, we can get a relative narrow confidence/prediction interval since the predictors are near their center in the dataset. In other words, we can get a relative precise result without worrying about issues due to extrapolation.
 
 
 ## Problem 2
@@ -158,7 +160,8 @@ $$
 $$
 
 ### (b)
-In fact, we need the reverse version of result in (a). That is, for a r.v. $X$, it has cdf $F$ and quantile function $F^{-1}$, if, for all $p$,
+In fact, we need the converse version of result in (a). That is, for a r.v. $X$ with cdf $F$ and quantile function $F^{-1}$, if, for all $p$,
+
 $$F^{-1}(q) = \mu + \sigma\Phi^{-1}(q)$$
 then $X \sim N(\mu,\sigma^2)$
 
@@ -181,12 +184,13 @@ $$
 $$
 where $n+1$ is the correction for continuous distribution.
 
-After sorting $r_i$ to $r_{[i]}$, this sequence consists of quantile points of the behind distribution.      
-By taking the corresponding quantile in $\Phi^{-1}$, if we observe $y-x$ is a line or near a line, then we have the distribution of residual satisfies
+After sorting $r_i$ to $r_{[i]}$, this sequence consists of quantile points of the underlying distribution.        
+By identifying the corresponding quantiles in $\Phi^{-1}$, if we observe $y-x$ forms a line or closely resembles a line, then we can conclude that the distribution of residual satisfies
 $$
 F^{-1}(q) = \mu + \sigma\Phi^{-1}(q)
 $$
-therefore, we conclude that the residuals follow normal distribution.
+therefore, we conclude that the residuals follow a normal distribution.
+
 
 
 
