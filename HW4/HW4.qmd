@@ -138,6 +138,10 @@ axis(1, at = seq(0, 20))
 rug(teengamb$income,col=2, lwd=2)
 ```
 
+From the rugplot, we observe that the majority of incomes fall within the range of $[0, 10]$. As a result, the model will provide confident inference results within this range. The width of the confidence and prediction bands further supports this observation. However, when income exceeds 10, there are only three data points available in the original dataset. Consequently, making inferences in this range is less likely to yield precise results.
+
+
+
 
 
 ## Problem 2
