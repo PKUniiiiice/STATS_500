@@ -1,5 +1,5 @@
 ---
-title: "STATS 500 HW4"
+title: "STATS 500 HW5"
 author: "Minxuan Chen"
 date: last-modified
 format:
@@ -49,156 +49,162 @@ Github repo: \url{https://github.com/PKUniiiiice/STATS_500}
 
 ## Problem 1
 ### (a)
-First, we perform diagnostics on the original model.
 ```{r p1a}
 library(faraway)
 data(teengamb)
-# sex has already been encoded as 0,1, so we don't need to convert it to factor
-m.ori <- lm(gamble ~ sex+status+income+verbal, data=teengamb)
-#summary(m.ori)
+
+#teengamb$sex <- as.factor(teengamb$sex)
+m1 <- lm(gamble ~ ., data=teengamb)
+
+#we use cook's distance to check for influential points
+round(cooks.distance(m1), digits=4)
+par(mfrow=c(1,2))
+plot(m1, which=4)
+abline(h=4/nrow(teengamb), col=2)
+plot(m1, which=5)
+par(mfrow=c(1,1))
 ```
 
-* Check the constant variance assumption for the errors.
-
-We can use both the `Residuals vs Fitted` and `Scale-Location` plots to check for variance issues. It's evident that, as $x$ increases, the magnitude of residuals also increases. So we conclude that there is  heteroscedasticity. Note that this violation may result in bias into all inferences. As a remedy, we choose to apply a transformation and proceed with the remaining diagnosis on the new model.
-
-```{r p1a1}
-par(mfrow = c(1,2))
-plot(m.ori, which=1)
-plot(m.ori, which=3)
-par(mfrow = c(1,1))
-```
-
-We take the square root of the response `gamble`.
-```{r p1a1new}
-#new model
-m.new <- lm(sqrt(gamble) ~ ., data=teengamb)
-#summary(m.new)
-
-par(mfrow = c(1,2))
-plot(m.new, which=1)
-plot(m.new, which=3)
-par(mfrow = c(1,1))
-```
-
-In the new model, we still observe some slight heteroscedasticity in residuals, although it is not as severe as in the original model.
-
-
-* Check the normality assumption.   
-```{r p1a2}
-plot(m.new, which=2)
-```
-
-From cases No.39,36 and 24, we observe that the residuals are slightly heavy-tailed compared to a normal distribution. So, there is a slight violation of the normality assumption.
-
-* Check for large leverage points.
-```{r p1a3}
-plot(m.new, which=5)
-abline(v=2*length(m.new$coefficients)/nrow(teengamb), col='red')
-hatvalues(m.ori)>2*length(m.new$coefficients)/nrow(teengamb)
-```
-
-When we add a vertical line $x=\frac{2(p+1)}{n}$ on the `Residuals vs Leverage` plot, we can identify 4 points with high leverage. Upon direct calculation, case No.31, 33, 35 and 42 are large leverage points.
-
-* Check for outliers.
-```{r p1a4}
-plot(abs(rstudent(m.new)))
-abline(h=2, col='red')
-```
-
-We can plot all absolute values of studentized deleted residuals. One empirical rule of outliers is
-$$
-|t_i|>2
-$$
-We find it's likely that there are three outliers.
-
-We can also perform a test.
-```{r p1a44}
-library(car)
-outlierTest(m.new)
-```
-The test result tells that there are no outliers.
+From the plots, we conclude that case No.24 and No.39 are influential points.
 
 ### (b)
-We generate the pointwise confidence/prediction band (ref:[click](https://en.wikipedia.org/wiki/Confidence_and_prediction_bands)).
-```{r p1b}
-newx <- data.frame(
-            sex = 0,
-            income = seq(0,20),
-            status = 43,
-            verbal = 7
-)
-conf <- predict(m.new, newdata=newx, interval="confidence")
-pred <- predict(m.new, newdata=newx, interval="prediction")
-matplot(newx$income, cbind(conf, pred[,2:3]),
-        lty=c(1,2,2,2,2),
-        col=c(1, 'red', 'red', 'blue', 'blue'), type="l",
-        xlab="income", ylab="gamble", xaxt="n")
-axis(1, at = seq(0, 20))
-rug(teengamb$income,col=2, lwd=2)
+We use partial regression and residual plots to check the structure of the model.
+
+Partial regression plots
+```{r p1b1}
+library(car)
+avPlots(m1)
 ```
 
-From the rugplot, we observe that the majority of incomes fall within the range of $[0, 10]$. As a result, the model will provide confident inference results within this range. The width of the confidence and prediction bands further supports this observation. However, when income exceeds 10, there are only three data points available in the original dataset. Consequently, making inferences in this range is less likely to yield precise results.
+These four partial regression plots do not reveal any significant issues related to non linearity.
 
+For outliers, each of these plots has identified two points with the largest residuals. For instance, in the `gamble-verbal` plot, cases No. 24 and No. 39 exhibit notably large-residual points and can be considered outliers.
 
+For influential points, the plots have also identified two points with the most extreme horizontal values, signifying the large partial leverage. Some of them are merely high-leverage points (e.g., No. 34 and No. 42 in `gamble-income`), but others can be categorized as influential (e.g., No. 24 in both `gamble-sex` and `gamble-status`).
 
+Partial residual plots
+```{r p1b2, warning=FALSE, fig.align='center', fig.width=8, fig.height=6}
+crPlots(m1)
+```
 
+The pink lines represent a smoother of the (component+residual) vs $x_j$. Our observations reveal that for the variables `sex` and `status`, there is no significant non linearity.
+
+However, in `income` and `verbal`, the smoothers exhibit slight curvature. This suggests that it might be beneficial to consider adding squared terms for these variables to the model.
 
 ## Problem 2
-### (a)
-Note that if $Z \sim \mathcal{N}(0,1)$, then $X=\mu+\sigma Z \sim \mathcal{N}(\mu, \sigma^2)$ and the cdf of normal distribution is strictly monotonic. By definition
+### (1)
+```{r p21}
+data("longley")
+
+#original
+m_ori <- lm(Employed~., data=longley)
+summary(m_ori)
+#normalized
+m_nor <- lm(Employed~., data=data.frame(scale(longley)))
+summary(m_nor)
+```
+
+We rescale both $x$ and $y$, consequently, t-statistic (except for the intercept), F-statistic, and $R^2$ remain unchanged, but 
 $$
 \begin{aligned}
-\mathbb{P}(X\leq F^{-1}(q)) &= q\\
-&=\mathbb{P}(\mu+\sigma Z \leq  F^{-1}(q)) \\
-&=\mathbb{P}(Z \leq \frac{F^{-1}(q)-\mu}{\sigma})
+&\hat{\sigma} \to \hat{\sigma}/sd(y)\\
+&\hat{\beta}_j \to sd(x)\cdot\hat{\beta}_j/sd(y)\\
+&\hat{\beta}_0 \to (\hat{\beta}_0-\bar{y}+\Sigma\hat{\beta_j}\bar{x}_j)/sd(y)(=0)\\
 \end{aligned}
 $$
-i.e.
+We can verify this
+```{r p22}
+temp <- scale(longley)
+men <- attr(temp, "scaled:center")
+sdd <- attr(temp, "scaled:scale")
+
+#sigma^2
+all.equal(summary(m_nor)$sigma,
+          summary(m_ori)$sigma/sdd[7], 
+          check.attributes = FALSE) 
+
+#beta_j
+all.equal(coef(m_nor)[2:7],
+          coef(m_ori)[2:7]*sdd[1:6]/sdd[7],
+          check.attributes = FALSE)
+
+#beta_0
+all.equal(coef(m_nor)[1],
+          (coef(m_ori)[1]-men[7]+sum(coef(m_ori)[2:7]*men[1:6]))/sdd[7],
+          check.attributes = FALSE)
+```
+
+Pros:   
+1. We can compare coefficients directly (removing magnitude difference between predictors)
+2. It helps numerical stability (numerical problems in computing $(X^TX)^{-1}$) can be avoided or mitigated).
+
+Cons:    
+1. Interpretation of coefficients is harder, since they are not in original unit.
+
+### (2)
+We calculate condition number of $X^TX$.
+```{r}
+kappa(crossprod(model.matrix(m_ori)))
+```
+It's a really large value, so there will be large collinearity in this linear model.
+
+### (3)
+```{r}
+cor(longley[1:6])
+
+library(corrplot)
+corrplot(cor(longley[1:6]))
+```
+
+We observe strong correlation among `GNP.deflator`, `GNP`, `Population` and `Year`. This provides direct evidence of collinearity.
+
+### (4)
+```{r}
+vif(m_ori)
+```
+We observe that the VIFs of `GNP.deflator`, `GNP`, `Unemployed`, `Population` and `Year` are notably high. It shows that there exists obvious collinearity.
+
+## Problem 3
+True relationship is
 $$
-\mathbb{P}(Z \leq \frac{F^{-1}(q)-\mu}{\sigma}) = q
+y_i^A = \beta_0+\beta_1x_i^A
 $$
-Use the definition of quantile function again
+There are errors in $y_i$ and $x_i$, but here we only regard errors in $y_i$ as random variable, that is
 $$
-\frac{F^{-1}(q)-\mu}{\sigma} = \Phi^{-1}(q) \to F^{-1}(q) = \mu + \sigma\Phi^{-1}(q)
+y_i^O = \beta_0 + \beta_1x_i^O - \beta_1\delta_i + \epsilon_i
 $$
-
-### (b)
-In fact, we need the converse version of result in (a). That is, for a r.v. $X$ with cdf $F$ and quantile function $F^{-1}$, if, for all $p$,
-
-$$F^{-1}(q) = \mu + \sigma\Phi^{-1}(q)$$
-then $X \sim N(\mu,\sigma^2)$
-
-*Proof*
-
+We can regard $-\beta_1\delta_i + \epsilon_i$ as the new error term,
 $$
-\mathbb{P}(X\leq F^{-1}(q)) = \mathbb{P}(X\leq \mu + \sigma\Phi^{-1}(q)) = 
-\mathbb{P}(\frac{X-\mu}{\sigma}\leq \Phi^{-1}(q))=q, \forall 0<q<1 
+y_i^O = \beta_0 + \beta_1x_i^O + \tilde{\epsilon}_i
 $$
-Therefore, $\Phi^{-1}(q)$ must be the quantile
-function of $\frac{X-\mu}{\sigma}$, i.e.
+Despite certain assumptions of $\tilde{\epsilon}_i$ being violated compared to the classical linear regression model, we can still address this problem from a least squares perspective. In other words, we can apply the standard formula to estimate $\hat{\beta}_1$.
 $$
-\frac{X-\mu}{\sigma} \sim \mathcal{N}(0,1) \to X \sim N(\mu,\sigma^2)
+\begin{aligned}
+\hat{\beta}_1 &= \frac{\sum(x_i^O-\bar{x}^O)(y_i^O-\bar{y}^O)}{\sum(x_i^O-\bar{x}^O)^2}\\\
+&=\frac{\sum (x_i^A-\bar{x}^A)(y_i^A-\bar{y}^A)+
+            (x_i^A-\bar{x}^A)(\epsilon_i-\bar{\epsilon})+
+            (\delta_i-\bar{\delta})(y_i^A-\bar{y}^A)+(\delta_i-\bar{\delta})(\epsilon_i-\bar{\epsilon})}{\sum (x_i^A-\bar{x}^A)^2+(\delta_i-\bar{\delta})^2 + 2(x_i^A-\bar{x}^A)(\delta_i-\bar{\delta})}\\
+&= \frac{\text{numerator}}{n(\sigma_x^2+\sigma_\delta^2+2\sigma_{x\delta})} 
+\end{aligned}
 $$
 
-
-In QQ plots for normality test, we plot
+Then, We consider the numerator. Since the errors $\epsilon_i$ are the only random variables, using $y_i^O=y_i^A+\epsilon_i$ again and $E(\epsilon_i)=0$,
 $$
-\left\{y = r_{[i]}, x=  \Phi^{-1}\left(\frac{i}{n+1}\right) \right\}
+\begin{aligned}
+\mathbb{E}(\text{numerator}) &=\sum (x_i^A-\bar{x}^A)\mathbb{E}(y_i^A-\bar{y}^A)+
+            (x_i^A-\bar{x}^A)\mathbb{E}(\epsilon_i-\bar{\epsilon})+
+            (\delta_i-\bar{\delta})\mathbb{E}(y_i^A-\bar{y}^A)+(\delta_i-\bar{\delta})\mathbb{E}(\epsilon_i-\bar{\epsilon}) \\
+&=\sum (x_i^A-\bar{x}^A)\mathbb{E}(y_i^A-\bar{y}^A)+
+            (\delta_i-\bar{\delta})\mathbb{E}(y_i^A-\bar{y}^A)\\
+&= \sum (x_i^A-\bar{x}^A)\beta_1(x_i^A-\bar{x}^A)+
+            (\delta_i-\bar{\delta})\beta_1(x_i^A-\bar{x}^A)\\
+&= \beta_1\sum (x_i^A-\bar{x}^A)^2+
+            (\delta_i-\bar{\delta})(x_i^A-\bar{x}^A)\\
+            &=\beta_1\cdot n(\sigma_x^2+\sigma_{x\delta})
+\end{aligned}
 $$
-where $n+1$ is the correction for continuous distribution.
 
-After sorting $r_i$ to $r_{[i]}$, this sequence consists of quantile points of the underlying distribution.        
-By identifying the corresponding quantiles in $\Phi^{-1}$, if we observe $y-x$ forms a line or closely resembles a line, then we can conclude that the distribution of residual satisfies
+Therefore
 $$
-F^{-1}(q) = \mu + \sigma\Phi^{-1}(q)
+\mathbb{E}(\hat{\beta}_1) = \frac{\mathbb{E}(\text{numerator})}{n(\sigma_x^2+\sigma_\delta^2+2\sigma_{x\delta})} =\beta_1 \frac{\sigma_x^2+\sigma_{x\delta}}{\sigma_x^2+\sigma_\delta^2+2\sigma_{x\delta}}
 $$
-therefore, we conclude that the residuals follow a normal distribution.
-
-
-
-
-
-
-
-
