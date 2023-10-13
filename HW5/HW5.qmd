@@ -71,7 +71,7 @@ From the plots, we conclude that case No.24 and No.39 are influential points.
 We use partial regression and residual plots to check the structure of the model.
 
 Partial regression plots
-```{r p1b1}
+```{r p1b1, fig.align='center', fig.width=8, fig.height=6}
 library(car)
 avPlots(m1)
 ```
