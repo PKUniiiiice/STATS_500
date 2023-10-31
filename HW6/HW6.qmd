@@ -1,0 +1,336 @@
+---
+title: "STATS 500 HW6"
+author: "Minxuan Chen"
+date: last-modified
+format:
+  html:
+    toc: true
+    css: styles.css
+    fig-align: "center"
+    fig-width: 6
+    fig-height: 5
+    embed-resources: true
+    format-links: false
+    execute:
+      warning: true
+      freeze: auto
+  pdf:
+    papersize: a4paper
+    pdf-engine: pdflatex
+    toc: false
+    number-sections: false
+    colorlinks: true
+    fig-width: 6
+    fig-asp: 0.8
+    urlcolor: blue
+    fontsize: 12pt
+    geometry:
+      - top=30mm
+      - left=15mm
+      - right=15mm
+      - bottom=30mm
+      - heightrounded
+code-fold: show
+code-overflow: scroll
+code-line-numbers: true
+---
+
+```{=latex}
+% Trigger ToC creation in LaTeX
+\tableofcontents
+\thispagestyle{empty}
+\vspace{20pt}
+Github repo: \url{https://github.com/PKUniiiiice/STATS_500}
+
+\newpage
+
+\setcounter{page}{1}
+```
+
+## Problem 1
+### (a)
+```{r p1a}
+library(faraway)
+library(quantreg)
+library(MASS)
+data("stackloss")
+
+# least squares
+lsq <- lm(stack.loss ~ ., data=stackloss)
+summary(lsq)
+```
+Least squares works well and we observe a $R^2$ of 0.9136 and a adjusted $R^2$ of 0.8983. And the predictors `Air.Flow`, `Water.Temp` and the intercept are significant.
+
+```{r p1aa}
+#least absolute deviations
+glad <- quantreg::rq(stack.loss ~ ., data=stackloss)
+summary(glad)
+```
+There is some change in the coefficients. The confidence intervals show all predictors are significant, but we observe the upper bound of `Acid.Conc` is -0.02891, which is close to 0. So we think maybe `Acid.Conc` is only weakly significant. Moreover, although, the estimation of `Water.Temp` becomes 0.57, which is half of the previous estimation, we observe it has a relative wide confidence interval. The upper bound is 1.4109, which contains the estimation of least squares model.
+
+```{r p1aaa}
+#Huber method
+ghuber <- MASS::rlm(stack.loss ~ ., data=stackloss)
+summary(ghuber)
+```
+Again, there is some change in the coefficients. The confidence intervals suggest that `Acid.Conc` is not significant. And the standard errors are benerally smaller (2.441).
+
+```{r p1aaaa}
+#least trimmed squares
+glts <- MASS::ltsreg(stack.loss ~ ., data=stackloss, nsamp="exact")
+round(glts$coefficients, 4)
+```
+Comparing to least squares result, there are relatively obvious change in estimation of `Water.Temp`, since its value lies outside the confidence interval of least squares estimation. We use bootstrap to get standard errors for the LTS regression coefficients.
+```{r p1aaaaa}
+bcoef <- matrix(0,1000,4)
+for(i in 1:1000){
+  newy <- glts$fitted.values + glts$residuals[sample(21, rep=T)]
+  bcoef[i,] <- MASS::ltsreg(stack.x, newy, nsamp="best")$coef
+}
+apply(bcoef,2,function(x) quantile(x,c(0.025,0.975)))
+```
+From the bootstrap, both `Water.Temp` and `Acid.Conc` are not significant.
+
+Now, we use diagnostic methods to detect outlier or influential points. We consider the least squares model.
+
+```{r}
+#outlier
+plot(abs(rstudent(lsq)),ylim=c(0, 3.5))
+abline(h=2, col='red')
+text(x=c(4,21), y=abs(rstudent(lsq))[c(4,21)],
+     labels=c(4,21), pos=3, col="red", cex=0.8)
+car::outlierTest(lsq)
+```
+From this plot, it's likely that all points are not outliers. From the test result, the bonferroni p-value is larger than 0.05, therefore, there are no outliers.
+
+```{r}
+#leverage and influential
+par(mfrow=c(1,2))
+plot(lsq, which=5)
+abline(v=2*length(lsq$coefficients)/nrow(stackloss), col='red')
+hatvalues(lsq)>2*length(lsq$coefficients)/nrow(stackloss)
+halfnorm(cooks.distance(lsq),3,ylab="Cook’s distances")
+par(mfrow=c(1,1))
+```
+There is only one point with high leverage, however, from the Cook's distance line, this point is not influential.
+
+From the half-norm plot, case No.21 is likely to be influential.
+
+From above, we remove case No.4 and No.21 and then use least squares.
+```{r}
+lsq.rm <- lm(stack.loss ~ ., data=stackloss, subset=-c(4,21))
+summary(lsq.rm)
+```
+Comparing to least squares method, there is an obvious change in coefficients. And the $R^2$ becomes greater. So we get a better fit.
+
+### (b)
+```{r p1b}
+MASS::boxcox(lsq, plotit=T, lambda=seq(-1, 1.5, by=0.1))
+```
+The confidence interval of $\lambda$ is about $(-0.2, 0.7)$. Note that $\lambda=1$ is not in this range. So it's necessary to perform some transformation on the `stack.loss` variable. For convenience and interpretation, we can take $\lambda=0$, i.e. $\log(\texttt{stack.loss})$ or $\lambda=0.5$, i.e. $\sqrt{\texttt{stack.loss}}$. The likelihood values of these two choices are almost.
+
+### (c)
+We use the square root transformation.
+```{r p1c, fig.height=8}
+lsq.sqrt <- lm(sqrt(stack.loss) ~ ., data=stackloss)
+summary(lsq.sqrt)
+par(mfrow=c(2,2))
+plot(lsq.sqrt)
+par(mfrow=c(1,1))
+```
+From the residuals vs fitted values and QQ plots, there is no obvious problems concerning linearity and normality. From scale-location plot, there is no obvious violation about homoscedasticity. Moreover, the residuals vs Leverage plot show there no obvious influential points. 
+
+Generally, after Box-Cox transformation, the least squares regression results appear to satisfy the standard assumption.
+
+## Problem 2
+### (a)
+```{r p2a}
+data("aatemp")
+m1 <- lm(temp~year, data=aatemp)
+summary(m1)
+par(mfrow=c(1,2))
+plot(m1, which=c(1,2))
+par(mfrow=c(1,1))
+```
+Note the estimation of year is significant, so the results suggest there is a non-constant linear trend.
+
+There is no obvious problems in QQ plot. But in residuals vs fitted plot, we can observe a slight horizontal "S" curve in the residuals. The red lowess line shows this.
+
+### (b)
+```{r p2b}
+library(nlme)
+m2.corr <- nlme::gls(temp~year,
+                     correlation=corAR1(form=~year), data=aatemp)
+summary(m2.corr)
+intervals(m2.corr, which="var-cov")
+```
+
+The correlation is 0.2304 and the confidence interval doesn't contain 0. So we think the correltion is significant.
+
+For the linear trend, the estimate of year is still significant at level $\alpha=0.05$. However, its p-value is not notably small and the estimate is close to zero, so we think the linear trend is not as significant as that in (a).
+
+### (c)
+```{r}
+#we start with poly(year, 10) and check whether the highest polynomial term is significant to decide whether to stop
+m.try <- NULL
+summ <- NULL
+for (i in 10:1){
+  summ <- summary(m.try <- lm(temp ~ poly(year, i), data=aatemp))
+  deg.max <- summ$coefficients[i+1, "Pr(>|t|)"]
+  if (deg.max<0.05) break
+}
+summ
+```
+Therefore, the highest degree polynomial to fit the model is 5.
+
+For the specific final "polynomial" model, it is with degree 5. And the regression equation is (ref: [click](https://stackoverflow.com/questions/26728289/extracting-orthogonal-polynomial-coefficients-from-rs-poly-function))
+$$
+\begin{aligned}
+\text{temp} = &\beta_0F_0(\text{year}) + \beta_1F_1(\text{year})  +\beta_2F_2(\text{year}) + \\&\beta_3F_3(\text{year}) +\beta_4F_4(\text{year}) + \beta_5F_5(x)
+\end{aligned}
+$$
+in which, $\beta_i$ is as follow,
+```{r}
+beta <- coef(m.try)
+print(sapply(1:length(beta), function(i) {
+  paste("beta_", i-1, ": ", beta[i], sep = "")
+}))
+```
+And $F_i(\text{year})$ is defined recursively by
+$$
+\begin{aligned}
+&F_0(x) = 1 / \sqrt{n_2} \\
+&F_1(x) = (x-a_1) / \sqrt{n_3}\\
+&F_i(x) = \frac{{(x - a_i) \cdot \sqrt{n_{i+1}} \cdot F_{i-1}(x) - \frac{{n_{i+1}}}{{\sqrt{n_i}}} \cdot F_{i-2}(x)}}{{\sqrt{n_{i+2}}}},\quad i\geq2
+\end{aligned}
+$$
+in which $a_i$ and $n_i$ are No.i element of the following vector
+```{r}
+ai <- attributes(z <- poly(aatemp$year, 5))$coefs$alpha
+ni <- attributes(z)$coefs$norm2
+F.i <- function(x, i){
+  if(i==0){
+    return (1/sqrt(ni[2]))
+  }
+  else if(i==1){
+    return ((x-ai[1])/sqrt(ni[3]))
+  }
+  else{
+    return ((((x-ai[i])*sqrt(ni[i+1]))*F.i(x, i-1) -
+    ni[i+1]/sqrt(ni[i])*F.i(x, i-2))/sqrt(ni[i+2]))
+  }
+}
+# ai
+ai
+# ni
+ni
+```
+
+```{r}
+#plot the fitted model on top of the data
+plot(aatemp$year, aatemp$temp)
+lines(aatemp$year, m.try$fitted.values, col="red")
+```
+
+
+For the polynomial model, $R^2$ is 0.1952 and adjusted $R^2$ is 0.1583. This result is better than the simple linear model. The plot also shows the model fits the data well. 
+
+### (d)
+Results of polynomial model
+```{r p2d}
+newx <- data.frame(year=2020)
+new.temp <- predict(m.try, newdata=newx); new.temp
+#confidence interval
+predict(m.try, newdata = newx, interval = "confidence", level = 0.95)
+#predictive interval
+predict(m.try, newdata = newx, interval = "prediction", level = 0.95)
+```
+Results of simple linear model
+```{r p2dd}
+new.temp <- predict(m1, newdata=newx); new.temp
+#confidence interval
+predict(m1, newdata = newx, interval = "confidence", level = 0.95)
+#predictive interval
+predict(m1, newdata = newx, interval = "prediction", level = 0.95)
+```
+For this extrapolation, the polynomial model gives a greater prediction on the temperature in 2020 and a much wider confidence/prediction interval. This is due to the unstablilty of polynomial methods for extrapolation (Runge's phenomenon). If we check the real data, NOAA records that the annual mean temperature is about 50 F. So the prediction given by polynomial model is unreliable at this point.
+
+### (e)
+```{r p2e}
+plot(aatemp$year, aatemp$temp, main="Temp in Ann Arbor, MI")
+abline(v=1930, col="red")
+lhs <- function(x) ifelse(x<=1930, mean(aatemp$temp[1:49]), 0)
+rhs <- function(x) ifelse(x>1930, x-1930, 0)
+m2 <- lm(temp~lhs(year)+rhs(year), data=aatemp)
+x <- aatemp$year
+py <- m2$coef[1] + m2$coef[2]*lhs(x) + m2$coef[3]*rhs(x)
+lines(x, py, lty=2)
+summary(m2)
+```
+
+The $R^2$ of this model is 0.1954, much higher than the simple linear model. And the plot show different pattern before and after year 1930. So it seems that the claim is reasonable.
+
+### (f)
+```{r p2f}
+library(splines)
+attach(aatemp)
+knots <- c(1854, 1854, 1854, seq(1854, 2000, length.out=6),
+          2000, 2000, 2000)
+byear <-  splineDesign(knots, aatemp$year)
+gs <-  lm(aatemp$temp ~ byear-1)
+df.plot <- data.frame(cbind(aatemp$year, aatemp$temp,
+                              gs$fitted.values,
+                              m.try$fitted.values,
+                              m2.corr$fitted,
+                              m1$fitted.values,
+                              py))
+colnames(df.plot) <- c("year", "temp", "Spline",
+                       "Polynomial","AR(1)",
+                       "Simple", "Broken Stick")
+library(ggplot2)
+# Create a ggplot object
+gg <- ggplot(data = df.plot, aes(x = year)) +
+  geom_point(aes(y = temp), color = "skyblue") +
+  geom_line(aes(y = Spline, color = "Spline")) +
+  geom_line(aes(y = Polynomial, color = "Polynomial")) +
+  geom_line(aes(y = `AR(1)`, color = "AR(1)")) +
+  geom_line(aes(y = Simple, color = "Simple")) +
+  geom_line(aes(y = `Broken Stick`, color = "Broken Stick")) +
+  scale_color_manual(values = c("Spline" = "red", "Polynomial" = "blue", "AR(1)" = "darkgreen", "Simple" = "orange", "Broken Stick" = "purple")) +
+  labs(color = "Line") +
+  theme_minimal() +
+  theme(legend.position = "top") +
+  guides(color = guide_legend(title = "Models"))
+gg
+```
+
+Generally, the cubic spline fit looks similar to polynomial fit of degree 5. And after year 1900, these two fitted lines are close.
+
+```{r}
+summary(gs)
+```
+From the result, this model fit much better than the straight-line model. Even it is like a perfect fit since $R^2$ is very close to 1.
+
+### (g)
+```{r p2g}
+gsmooth <- smooth.spline(aatemp$year, aatemp$temp)
+```
+
+```{r, warning=FALSE, echo=FALSE, message=FALSE}
+df.plot["Smoothing Spline"] <- gsmooth$y
+gg+
+  geom_line(aes(x=x, y=`Smoothing Spline`, color ="Smoothing Spline"),
+            data=df.plot, show.legend=TRUE)+
+  scale_color_manual(values = c("Spline" = "red", "Polynomial" = "blue",
+                                "AR(1)" = "darkgreen", "Simple" = "orange",
+                                "Broken Stick" = "purple",
+                                "Smoothing Spline"="Magenta")) +
+  labs(color = "Line") +
+  theme_minimal() +
+  theme(legend.position = "top") +
+  guides(color = guide_legend(title = "Models"))
+
+```
+From the plot, it's hard to say that this model fit better than the straight-line and the spline model in (f). Because the fitted line is too 
+wavy. Maybe for the fitting itself, this model is better, but for practice, it is obviously overfitting.
+
