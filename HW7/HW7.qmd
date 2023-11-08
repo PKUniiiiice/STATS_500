@@ -1,0 +1,255 @@
+---
+title: "STATS 500 HW7"
+author: "Minxuan Chen"
+date: last-modified
+format:
+  html:
+    toc: true
+    css: styles.css
+    fig-align: "center"
+    fig-width: 6
+    fig-height: 5
+    embed-resources: true
+    format-links: false
+    execute:
+      warning: true
+      freeze: auto
+  pdf:
+    papersize: a4paper
+    pdf-engine: pdflatex
+    toc: false
+    number-sections: false
+    colorlinks: true
+    fig-width: 6
+    fig-asp: 0.8
+    urlcolor: blue
+    fontsize: 12pt
+    geometry:
+      - top=30mm
+      - left=15mm
+      - right=15mm
+      - bottom=30mm
+      - heightrounded
+code-fold: show
+code-overflow: scroll
+code-line-numbers: true
+---
+
+```{=latex}
+% Trigger ToC creation in LaTeX
+\tableofcontents
+\thispagestyle{empty}
+\vspace{20pt}
+Github repo: \url{https://github.com/PKUniiiiice/STATS_500}
+
+\newpage
+
+\setcounter{page}{1}
+```
+
+## Problem 1
+### (a)
+```{r}
+library(faraway)
+data(teengamb)
+
+m1 <- lm(gamble ~ ., data=teengamb)
+summary(m1)
+
+m1 <- update(m1, . ~ . - status)
+summary(m1)
+
+m1 <- update(m1, . ~ . - verbal)
+summary(m1)
+```
+
+The best model is the last summary output shown above, in which `sex` and `income` are used as predictors.
+
+### (b)
+```{r}
+#AIC
+m2 <- lm(gamble ~ ., data=teengamb)
+step(m2)
+```
+
+The best model selected by AIC is that uses `sex`, `income` and `verbal` as predictors.
+
+### (c)
+```{r}
+#Adjusted R^2
+library(leaps)
+m3 <- regsubsets(gamble ~ ., data=teengamb)
+res <- summary(m3); res
+#select model with largest adjusted r^2
+which.max(res$adjr2)
+res$adjr2[3]
+summary(lm(gamble ~ .-status, data=teengamb))
+```
+
+The best model selected by Adjusted $R^2$ is that uses `sex`, `income` and `verbal` as predictors, which is the same as the choice made by AIC.
+
+### (d)
+```{r}
+# Mallows Cp
+which.min(res$cp)
+res$cp[3]
+summary(lm(gamble ~ .-status, data=teengamb))
+```
+
+The best model selected by Mallows $C_p$ is that uses `sex`, `income` and `verbal` as predictors, which is the same as the choice made by AIC and Adjusted $R^2$.
+
+## Problem 2
+### (a)
+```{r}
+data("seatpos")
+m.sea <- lm(hipcenter ~ ., data=seatpos)
+summary(m.sea)
+```
+Note that the coefficient of `Leg` is -6.43905, so it means `hipcenter` will decrease 6.43905 if we increase `Leg` by 1 unit, when all other predictors are held constant. Moreover, the p-value of `Leg` is 0.1824, greater than 0.05. So, in this model, this effect in `hipcenter` may be not such significant.
+
+### (b)
+```{r}
+newx <- data.frame(as.list(colMeans(seatpos)[-9]))
+predict(m.sea, newdata=newx, interval="prediction")
+```
+The prediction interval is $[-243.04 -86.72972]$.
+
+### (c)
+```{r}
+g <- lm(hipcenter ~ ., data=seatpos)
+summary(g)
+
+g <- update(g, . ~ . - Ht)
+summary(g)
+
+g <- update(g, . ~ . - Weight)
+summary(g)
+
+g <- update(g, . ~ . - Seated)
+summary(g)
+
+g <- update(g, . ~ . - Arm)
+summary(g)
+
+g <- update(g, . ~ . - Thigh)
+summary(g)
+```
+In the last model, we use three predictors, `Age`, `HtShoes` and `Leg`. Although in this model, not all p-values are less than 0.05, we don't need to strictly obey this criteria. And if we eliminate `Age`, we will find there is a large decrease in $R^2$ comparing to previous eliminations. 
+
+So we conclude this model to be the best.
+
+```{r}
+#AIC
+g2 <- lm(hipcenter ~ ., data=seatpos)
+step(g2)
+```
+
+The best model selected by AIC is that uses `Age`, `Leg` and `HtShoes` as predictors, which is the same as the choice made by Backward Elimination.
+
+```{r}
+# Mallows Cp
+g3 <- regsubsets(hipcenter ~ ., data=seatpos)
+res.g3 <- summary(g3); res
+#select model with largest adjusted r^2
+which.min(res.g3$cp)
+res.g3$cp[1]
+summary(lm(hipcenter ~ Ht, data=seatpos))
+```
+
+The best model selected by Mallows $C_p$ is that only uses `Ht` as predictors, which is different from the choices made by Backward Elimination and AIC.
+
+### (d)
+The model is
+```{r}
+summary(g.aic <- lm(formula = hipcenter ~ Age + HtShoes + Leg, data = seatpos))
+```
+
+The coefficient of `Leg` is -6.8297, so it means `hipcenter` will decrease 6.8297 if we increase `Leg` by 1 unit, when all other predictors are held constant. Moreover, the p-value of `Leg` is 0.1024, which is smaller than the previous 0.1824. So, in this model, this effect in `hipcenter` becomes more significant.
+
+For the prediction interval
+```{r}
+predict(g.aic, newdata=newx[ ,c(1,3,8)], interval="prediction")
+```
+The prediction interval is $[-237.209, -92.56072]$.
+
+Comparison:
+The estimated mean value of `hipcenter` in full model is -164.8849,
+and the CI is $[-243.04, -86.72972]$, which has length 156.3103.
+
+The estimated mean value of `hipcenter` in AIC-selected model is -164.8849,
+and the CI is $[-237.209, -92.56072]$, which has length 144.6483.
+
+We observe these two models give very close (even the same) prediction of the mean value of response and they have close $R^2$. So the fitting ability of them are close.
+
+However, the AIC-selected model gives a narrower CI, which shows it is more accurate when performing predictions. Moreover, the AIC-selected model is easier to interpret since it has less variables.
+
+## Problem 3
+We can rewrite the design matrix
+$$
+X = \begin{bmatrix}\mathbf{1} & X_p\end{bmatrix}
+$$
+in which
+$$
+X_p = \begin{bmatrix}
+| & |  & |\\
+x_1-\bar{x}_1 & \cdots & x_p-\bar{x}_p  \\
+| & |  & |\\
+\end{bmatrix}
+$$
+The standard formula of $\hat{\beta}$ is
+$$
+\hat{\beta} = (X^TX)^{-1}X^Ty
+$$
+We have
+$$
+X^TX = \begin{bmatrix}
+\mathbf{1}^T\mathbf{1} & \mathbf{1}^T X_p \\
+X_p^T\mathbf{1} & X_p^TX_p
+\end{bmatrix}
+$$
+Note that
+$$
+\begin{aligned}
+\mathbf{1}^T X_p &=  \begin{bmatrix}
+\mathbf{1}^T(x_1-\bar{x}_1) & \cdots & \mathbf{1}^T(x_p-\bar{x}_p)
+\end{bmatrix} \\
+&= \begin{bmatrix}
+\sum_i x_{1i}-n\bar{x}_1 & \cdots & \sum_i x_{pi}-n\bar{x}_p  \\
+\end{bmatrix} \\
+&=\begin{bmatrix} 0 & \cdots & 0\end{bmatrix} \quad \text{(by definiton of mean)}
+\end{aligned}
+$$
+Therefore, by the formula of block matrix inversion (ref:[click](https://en.wikipedia.org/wiki/Block_matrix))
+$$
+\begin{aligned}
+(X^TX)^{-1} &= \begin{bmatrix}
+ n & 0 \\
+0 & X_p^TX_p
+\end{bmatrix}^{-1} \\
+&=\begin{bmatrix}
+ 1/n & 0 \\
+0 & (X_p^TX_p)^{-1}
+\end{bmatrix} 
+\end{aligned} 
+$$
+so
+$$
+\begin{aligned}
+\hat{\beta} &= (X^TX)^{-1}X^Ty \\
+&= \begin{bmatrix}
+ 1/n & 0 \\
+0 & (X_p^TX_p)^{-1}
+\end{bmatrix} \cdot \begin{bmatrix}\mathbf{1}^T \\ X_p^T\end{bmatrix} \cdot 
+y \\
+&= \begin{bmatrix}
+ 1/n & 0 \\
+0 & (X_p^TX_p)^{-1}
+\end{bmatrix} \cdot \begin{bmatrix}\mathbf{1}^T y \\ X_p^T y\end{bmatrix} \\
+&=\begin{bmatrix} \frac{1}{n}\mathbf{1}^T y  \\ \vdots \\ \vdots   \end{bmatrix}
+=\begin{bmatrix} \bar{y}  \\ \vdots \\ \vdots   \end{bmatrix}
+\end{aligned}
+$$
+Therefore, the resultant estimate of the intercept is
+$$
+\hat{\beta}_o = \bar{y}
+$$
