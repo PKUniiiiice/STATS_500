@@ -1,0 +1,236 @@
+---
+title: "STATS 500 HW8"
+author: "Minxuan Chen"
+date: last-modified
+format:
+  html:
+    toc: true
+    css: styles.css
+    fig-align: "center"
+    fig-width: 6
+    fig-height: 5
+    embed-resources: true
+    format-links: false
+    execute:
+      warning: true
+      freeze: auto
+  pdf:
+    papersize: a4paper
+    pdf-engine: pdflatex
+    toc: false
+    number-sections: false
+    colorlinks: true
+    fig-width: 6
+    fig-asp: 0.8
+    urlcolor: blue
+    fontsize: 12pt
+    geometry:
+      - top=30mm
+      - left=15mm
+      - right=15mm
+      - bottom=30mm
+      - heightrounded
+code-fold: show
+code-overflow: scroll
+code-line-numbers: true
+---
+
+```{=latex}
+% Trigger ToC creation in LaTeX
+\tableofcontents
+\thispagestyle{empty}
+\vspace{20pt}
+Github repo: \url{https://github.com/PKUniiiiice/STATS_500}
+
+\newpage
+
+\setcounter{page}{1}
+```
+
+## Problem 1
+```{r, message=FALSE}
+library(pls)
+library(MASS)
+library(glmnet)
+library(lars)
+gasdata = data.frame(cbind(gasoline$octane,
+                           gasoline$NIR[,c(1:40)]))
+names(gasdata)=c('octane','NIR1','NIR2','NIR3','NIR4','NIR5','NIR6','NIR7','NIR8','NIR9',
+'NIR10','NIR11','NIR12','NIR13','NIR14','NIR15','NIR16','NIR17','NIR18',
+'NIR19','NIR20','NIR21','NIR22','NIR23','NIR24','NIR25','NIR26','NIR27',
+'NIR28','NIR29','NIR30','NIR31','NIR32','NIR33','NIR34','NIR35','NIR36',
+'NIR37','NIR38','NIR39','NIR40')
+c = seq(1,56,5)
+gasdata_tr = gasdata[-c,]
+gasdata_te = gasdata[c,]
+
+rmse <- function(x, y){
+  return(sqrt(mean((x-y)^2)))
+}
+```
+
+### Linear regression with all predictors
+```{r}
+m.linear <- lm(octane ~ . , data=gasdata_tr)
+summary(m.linear)
+
+#training error
+paste("Training error",
+      tr.linear <- rmse(m.linear$fitted.values,
+                             gasdata_tr$octane))
+#test error
+paste("Test error", te.linear <- rmse(predict(m.linear, newdata = gasdata_te),gasdata_te$octane))
+```
+
+### Linear regression with variables selected using AIC
+```{r}
+#AIC 
+step(m.linear, trace=FALSE)
+m.AIC <- lm(octane ~ NIR2 + NIR4 + NIR10 + NIR12 + 
+                      NIR14 + NIR15 + NIR17 + NIR18 + NIR19 +
+                      NIR21 + NIR23 + NIR27 + NIR28 + NIR29 + 
+                      NIR30 + NIR31 + NIR33 + NIR34 + NIR36 +
+                      NIR38 + NIR39 + NIR40,
+              data = gasdata_tr)
+summary(m.AIC)
+
+#training error
+paste("Training error", tr.AIC <- rmse(m.AIC$fitted.values,
+                             gasdata_tr$octane))
+#test error
+paste("Test error", te.AIC <- rmse(predict(m.AIC, newdata = gasdata_te),
+                                   gasdata_te$octane))
+```
+
+### Principal component regression - using CV to pick order of model
+```{r}
+#PCR
+m.PCR <- pcr(octane~., data=gasdata_tr, validation = "CV")
+summary(m.PCR)
+
+rmsCV <- RMSEP(m.PCR, estimate='CV')
+which.min(rmsCV$val)
+
+#plot
+plot(rmsCV$val, xlab="PC number", ylab="CV RMS")
+
+m.PCR.best <- pcr(octane~., data=gasdata_tr, ncomp=4, validation = "CV")
+summary(m.PCR.best)
+coefplot(m.PCR.best, ncomp=4, xlab="Frequency")
+
+pred.pctr <-  predict(m.PCR, newdata=gasdata_tr, ncomp=4)
+pred.pcte <-  predict(m.PCR, newdata=gasdata_te, ncomp=4)
+#training error
+paste("Training error", tr.PCR <- rmse(pred.pctr,
+                             gasdata_tr$octane))
+#test error
+paste("Test error", te.PCR <- rmse(pred.pcte,gasdata_te$octane))
+```
+
+### Partial least squares - using CV to pick order of model
+```{r}
+m.pls <- plsr(octane ~ ., data = gasdata_tr,
+               validation = "CV")
+summary(m.pls)
+
+plsrmscv <- RMSEP(m.pls,estimate='CV')
+plot(plsrmscv$val)
+
+which.min(plsrmscv$val)
+
+pred.plstr = predict(m.pls, newdata=gasdata_tr, ncomp=3)
+pred.plste = predict(m.pls, newdata=gasdata_te, ncomp=3)
+
+#training error
+paste("Training error", tr.pls <- rmse(pred.plstr,
+                             gasdata_tr$octane))
+#test error
+paste("Test error", te.pls <- rmse(pred.plste,gasdata_te$octane))
+```
+
+### Ridge regression - using GCV to pick regularization parameter
+```{r}
+m.ridge <-  lm.ridge(octane ~ .,
+                     lambda=seq(0, .2, .01),
+                     data = gasdata_tr)
+head(m.ridge$coef)
+
+matplot(m.ridge$lambda,
+        t(m.ridge$coef), type="l",
+        lty=1,xlab=expression(lambda),
+        ylab=expression(hat(beta)))
+
+## Select an appropriate lambda
+select(m.ridge)
+
+m.ridge.best <- lm.ridge(octane ~ .,
+                         lambda=0.07,
+                         data = gasdata_tr); m.ridge.best$coef
+
+yfittr <-  m.ridge.best$ym + scale(gasdata_tr[,-1],
+                                center=m.ridge.best$xm,
+                                scale=m.ridge.best$scales) %*%
+                                m.ridge.best$coef
+#  training error
+paste("Training error", tr.ridge <- rmse(yfittr,
+                             gasdata_tr$octane))
+
+yfitte <-  m.ridge.best$ym + scale(gasdata_te[,-1],
+                                   center=m.ridge.best$xm,
+                                   scale=m.ridge.best$scales) %*%
+                                   m.ridge.best$coef
+#test error
+paste("Test error", te.ridge <- rmse(yfitte,
+                         gasdata_te$octane))
+```
+
+### Lasso regression - using CV to pick regularization parameter t.
+```{r}
+set.seed(123)
+m.lasso <-  lars(as.matrix(gasdata_tr[,-1]),
+                   gasdata_tr$octane)
+cvout <-  cv.lars(as.matrix(gasdata_tr[,-1]),
+                  gasdata_tr$octane)
+cvout$index[which.min(cvout$cv)]
+
+m.lasso <-  lars(as.matrix(gasdata_tr[,-1]),gasdata_tr$octane)
+predlars_tr <-  predict(m.lasso,as.matrix(gasdata_tr[,-1]),
+                        s=cvout$index[which.min(cvout$cv)],
+                        mode="fraction")$fit
+#  training error
+paste("Training error", tr.lasso <- rmse(predlars_tr, gasdata_tr$octane))
+
+predlars_te <-  predict(m.lasso,as.matrix(gasdata_te[,-1]),
+                        s=cvout$index[which.min(cvout$cv)],
+                        mode="fraction")$fit
+#test error
+paste("Test error", te.lasso <- rmse(predlars_te, gasdata_te$octane))
+
+
+```
+### Summary
+```{r}
+rmse.data <- matrix(c(tr.linear, tr.AIC, tr.PCR, tr.pls, tr.ridge,tr.lasso,
+                      te.linear, te.AIC, te.PCR, te.pls, te.ridge, te.lasso),
+                    ncol=6, byrow=1)
+colnames(rmse.data) <- c("LR", "LR.AIC", "PCR",
+                           "PLS", "Ridge","Lasso")
+row.names(rmse.data) <- c("Training RMSE", "Test RMSE")
+
+print(rmse.data)
+```
+
+### Prediction
+```{r}
+meanfreq <-  data.frame(t(colMeans(gasdata[,2:41])))
+
+pred.l <-  predict(m.linear, newdata=meanfreq)
+pred.aic <-  predict(m.AIC, newdata=meanfreq)
+pred.pcr <-  predict(m.PCR.best, newdata=meanfreq, ncomp=4)
+pred.pls <-  predict(m.pls, newdata=meanfreq, ncomp=3)
+pred.ridge <-  m.ridge.best$ym +
+  scale(meanfreq,center=m.ridge.best$xm,
+        scale=m.ridge.best$scales)%*%m.ridge.best$coef
+pred.lasso <- predict(m.lasso,as.matrix(meanfreq),s=0.05050505,mode="fraction")$fit
+c(pred.l,pred.aic,pred.pcr,pred.pls,pred.ridge,pred.lasso)
+```
