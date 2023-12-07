@@ -1,0 +1,294 @@
+---
+title: "STATS 500 HW10"
+author: "Minxuan Chen"
+date: last-modified
+format:
+  html:
+    toc: true
+    css: styles.css
+    fig-align: "center"
+    fig-width: 6
+    fig-height: 5
+    embed-resources: true
+    format-links: false
+    execute:
+      warning: true
+      freeze: auto
+  pdf:
+    papersize: a4paper
+    pdf-engine: pdflatex
+    toc: false
+    number-sections: false
+    colorlinks: true
+    fig-width: 6
+    fig-asp: 0.8
+    urlcolor: blue
+    fontsize: 12pt
+    geometry:
+      - top=30mm
+      - left=15mm
+      - right=15mm
+      - bottom=30mm
+      - heightrounded
+code-fold: show
+code-overflow: scroll
+code-line-numbers: true
+---
+
+```{=latex}
+% Trigger ToC creation in LaTeX
+\tableofcontents
+\thispagestyle{empty}
+\vspace{20pt}
+Github repo: \url{https://github.com/PKUniiiiice/STATS_500}
+
+\newpage
+
+\setcounter{page}{1}
+```
+
+## Problem 1
+### (a)
+```{r}
+library(faraway)
+data(seeds)
+
+par(mfrow=c(1,2))
+plot(seeds[seeds$covered=='no', 2],
+     seeds[seeds$covered=='no', 1],
+     ylab='Germination percentage', xlab='Moisture level',
+     main='Uncovered boxes', xaxt='n'
+     )
+axis(1,at=seq(1,11,by=2))
+plot(seeds[seeds$covered!='no', 2],
+     seeds[seeds$covered!='no', 1],
+     ylab='Germination percentage', xlab='Moisture level',
+     main='Covered boxes',xaxt='n')
+axis(1,at=seq(1,11,by=2))
+
+```
+
+We find that, in both uncovered and covered boxes, the germination percentage seems to increase with moisture level when the level is relative low (<5), and the germination percentage seems to decrease with moisture level when the level is relative high (>5). And if the moisture level is in a relative high level (=7, =9). If the level is too high (=11), no seed can germinate.
+
+So, considering the whole range of moisture level, the relationship seems in a quadratic form with a negative leading term.
+
+### (b)
+```{r}
+seeds$box <- factor(rep(1:8,each=6))
+
+library(ggplot2)
+# Create the ggplot objects
+plot_uncovered <- ggplot(subset(seeds, covered == 'no'), aes(x = moisture, y = germ, color = box, group=box)) +
+  geom_line() +
+  geom_point() +
+  labs(title = 'Uncovered boxes', x = 'Moisture level', y = 'Germination percentage') +
+  scale_x_continuous(breaks = seq(1, 11, 2))
+
+plot_covered <- ggplot(subset(seeds, covered != 'no'), aes(x = moisture, y = germ, color = box, group=box)) +
+  geom_line() +
+  geom_point() +
+  labs(title = 'Covered boxes', x = 'Moisture level', y = 'Germination percentage') +
+  scale_x_continuous(breaks = seq(1, 11, 2))
+
+# Arrange the plots side by side
+gridExtra::grid.arrange(plot_uncovered, plot_covered, ncol = 2)
+```
+
+There is no indication of a box effect. Since we observe the same tendency among different boxes (in uncovered boxes or in covered boxes.)
+
+### (c)
+In (a), we observe a quadratic relationship between moisture and germination percentage.
+
+Therefore, we can add a quadratic term of moisture. That is
+```{r}
+#dropna
+seeds <- na.omit(seeds)
+
+logitm <- glm(cbind(germ, 100-germ) ~ moisture + I(moisture^2) + box + covered,
+              family=binomial(link=logit), data=seeds)
+summary(logitm)
+```
+<!--We can also fit a probit model to compare.
+
+```{r}
+probitm <- glm(cbind(germ, 100-germ) ~ moisture + I(moisture^2) + box,
+              family=binomial(link=probit), data=seeds)
+summary(probitm)
+```
+-->
+
+We find that the p-value of moisture squared is strongly significant, so it's reasonable to add this term.
+
+Moreover, the effect of `coverage` is not identifiable since the box number and coverage are completely correlated, i.e. we can tell coverage or not totally from box number (1,2,3,4=uncovered, 5,6,7,8=covered).
+
+To solve this problem, we may need to remove the `box` predictor from the model. 
+
+We draw a plot of the predictions.
+```{r}
+xnew <- data.frame(
+  moisture = rep(seq(1,11,0.5),8),
+  covered = factor(rep(c('no','yes'),each=84)),
+  box = factor(rep(1:8, each=21))
+)
+pred.logit <- predict(logitm, xnew, type='response')
+temp <- cbind(xnew, pred.logit)
+
+plot_uncovered <- ggplot(subset(temp, covered == 'no'), aes(x = moisture, color=box)) +
+ # geom_point(aes(x=seeds$moisture, y = seeds$germ))+
+  geom_line(aes(y = pred.logit*100,), linewidth = 0.5,
+            linetype=2) +
+  geom_point(data=subset(seeds, covered == 'no'),
+             aes(x=moisture, y = germ))+
+  labs(title = 'Uncovered boxes', x = 'Moisture level', y = 'Germination percentage') +
+  scale_x_continuous(breaks = seq(1, 11, 2))
+
+plot_covered <- ggplot(subset(temp, covered != 'no'), aes(x = moisture, color=box)) +
+ # geom_point(aes(x=seeds$moisture, y = seeds$germ))+
+  geom_line(aes(y = pred.logit*100,), linewidth = 0.5,
+            linetype=2) +
+  geom_point(data=subset(seeds, covered != 'no'),
+             aes(x=moisture, y = germ))+
+  labs(title = 'Covered boxes', x = 'Moisture level', y = 'Germination percentage') +
+  scale_x_continuous(breaks = seq(1, 11, 2))
+
+# Arrange the plots side by side
+gridExtra::grid.arrange(plot_uncovered, plot_covered, ncol = 2)
+
+```
+
+### (d)
+To test the significance of a box effect in the model, we remove the box predictor and use anova.
+```{r}
+logitm2 <- glm(cbind(germ, 100-germ) ~ moisture + I(moisture^2) + covered,
+              family=binomial(link=logit), data=seeds)
+anova(logitm2, logitm)
+```
+The deviance is 3.2148, by $D \approx \chi_{n-s}^2$,
+the p-value is
+```{r}
+pchisq(3.2148, df=6, lower.tail=F)
+```
+The p-value is larger than 0.05, so we conclude that we do not reject the null model. That is, we accept the model without box effect.
+
+If using Pearson’s Chi-squared test, we need Pearson residuals.
+```{r}
+resM2 <- residuals(logitm2, type='pearson')
+resM1 <- residuals(logitm, type='pearson')
+pchisq(sum(resM2^2)-sum(resM1^2), df=6, lower.tail=F)
+```
+The p-value is still larger than 0.05, so we accept the model without box effect.
+
+### (e)
+```{r}
+#get prediction, full model is logitm
+seeds$pred <- predict(logitm, type='response')
+```
+In uncovered boxes
+```{r}
+seeds.no <- subset(seeds, covered=='no')
+seeds.no[seeds.no$pred==max(seeds.no$pred),]
+```
+The predicted maximum germination for
+uncovered boxes occurs at moisture level=5.
+
+In covered boxes
+```{r}
+seeds.yes <- subset(seeds, covered=='yes')
+seeds.yes[seeds.yes$pred==max(seeds.yes$pred),]
+```
+The predicted maximum germination for
+uncovered boxes also occurs at moisture level=5.
+
+### (f)
+```{r}
+plot(logitm, 1)
+```
+
+It seems the distribution of residuals is uneven across the predicted values. In other words, there may be non-constant variance in errors. And there is also slightly non-linear in the residuals since the red line is not horizontal.
+
+### (g)
+```{r}
+seeds$resid <- resid(logitm)
+
+ggplot(seeds, aes(x = moisture, y=resid, color=covered)) +
+  geom_point()+
+  geom_smooth(formula=y~x, method="loess", se=FALSE, linetype = 2, lindwidth=0.5)+
+  labs(title = 'Residuals vs Moisture',
+       x = 'Moisture level',
+       y = 'Residuals') +
+  scale_x_continuous(breaks = seq(1, 11, 2))
+```
+
+From this plot, we can still observe non-linear pattern in the residuals. Therefore, the moisture squared tern still does not fit the data well. We may add some higher terms as a trial.
+
+## Problem 2
+We estimate the dispersion parameter by
+$$
+\hat{\sigma}^2 = \frac{X^2}{n-p}
+$$
+that is
+```{r}
+sigma2 <- sum(resid(logitm, type='pearson')^2)/logitm$df.residual
+sigma2
+sumary(logitm,dispersion=sigma2)
+drop1(logitm, scale=sigma2, test="F")
+```
+The estimated dispersion parameter value is 13.77, which is much larger than the assumption of 1 we used in last problem.
+
+From the summary and F-test results, we find the standard error and p-value of coefficients changed. But the conclusion of no box effect still holds.
+
+## Problem 3
+First we consider the binomial model.
+
+The deviation is defined as
+$$
+D=2 \sum_{i=1}^n\left[y_i \log \frac{y_i}{\hat{y}_i}+\left(n_i-y_i\right) \log \frac{n_i-y_i}{n_i-\hat{y}_i}\right], \hat{y}_i = n_i\hat{p}_i
+$$
+
+We can rewrite the deviance as
+$$
+\begin{aligned}
+D&=2 \sum_{i=1}^n\left[y_i \log \frac{y_i}{\hat{y}_i}+\left(n_i-y_i\right) \log \frac{n_i-y_i}{n_i-\hat{y}_i}\right]\\
+&=2 \sum_{i=1}^n\left[y_i \log y_i - y_i \log n_i\hat{p}_i +\left(n_i-y_i\right) \log \left(n_i-y_i\right)  - \left(n_i-y_i\right) \log \left(n_i-n_i\hat{p}_i\right) \right]\\
+&=-2 \sum_{i=1}^n y_i (\log n_i+\log\hat{p}_i)+ \left(n_i-y_i\right) (\log n_i +\log  \left(1-\hat{p}_i\right)) + C_1(n_i,y_i)\\
+&=-2  \sum_{i=1}^n y_i \log\hat{p}_i+ \left(n_i-y_i\right)\log  \left(1-\hat{p}_i\right)  +  C_2(n_i,y_i) \\
+\end{aligned}
+$$
+in which $C_1(n_i,y_i), C_2(n_i,y_i)$ are terms that only depend on $n_i, y_i, i=1,2,...n$.
+
+AIC of binomial model is defined as
+$$
+\begin{aligned}
+AIC &= -2\log (\hat{L}) +2q \\
+&=-2 \sum_{i=1}^n\left[\log \left(\begin{array}{l}
+n_i \\
+y_i
+\end{array}\right)+y_i \log \hat{p}_i+\left(n_i-y_i\right) \log \left(1-\hat{p}_i\right)\right] + 2q \\
+&= -2 \sum_{i=1}^n y_i \log \hat{p}_i+\left(n_i-y_i\right) \log \left(1-\hat{p}_i\right)  + 2q + C_3(n_i,y_i)
+\end{aligned}
+$$
+
+Comparing these two expressions, we find that
+$$
+AIC^* = D+2q = AIC - C_3(n_i,y_i) + C_2(n_i,y_i)
+$$
+Note that the difference between AIC and AIC* is a term that only depend on $n_i, y_i, i=1,2,...n$, which is the same across all models. Therefore, minimize AIC* criteria is equivalent to minimize AIC criteria.
+
+Next, for binary model, deviation is defined as
+$$
+D = -2 \sum_{i=1}^n\left[y_i \log \left(\hat{p}_i\right)+\left(1-y_i\right) \log \left(1-\hat{p}_i\right)\right]
+$$
+
+Note that in binomial model, if we take all $n_i=1$, then the deviance will become the same as that in binary situation except for a constant difference, which is independent of model and only depends on data.
+$$
+\begin{aligned}
+&D= -2  \sum_{i=1}^n y_i \log\hat{p}_i+ \left(1-y_i\right)\log  \left(1-\hat{p}_i\right)+C_2(n_i=1,y_i)
+\end{aligned}
+$$
+Moreover, for AIC of binary model, we can take all $n_i=1$ in AIC of binomial model to get the result.
+
+Therefore, for both deviance and AIC, binary model is a special case of binomial model. So previous conclusion still holds.
+
+From above, selecting the model via AIC criteria can be done by picking the model
+that minimizes the AIC* criteria
+
